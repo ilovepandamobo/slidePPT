@@ -12,7 +12,11 @@ RUN apk add --no-cache libc6-compat openssl
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
-RUN npx prisma generate && npm run build
+RUN npx prisma generate && npm run build \
+  && node ./node_modules/esbuild/bin/esbuild prisma/seed.ts \
+    --bundle --platform=node --format=cjs \
+    --outfile=prisma/seed.bundle.cjs \
+    --external:@prisma/client
 
 FROM node:20-alpine AS runner
 WORKDIR /app
@@ -30,14 +34,10 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/package.json ./package.json
-COPY --from=builder /app/tsconfig.json ./tsconfig.json
-COPY --from=builder /app/src ./src
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
 COPY --from=builder /app/node_modules/bcryptjs ./node_modules/bcryptjs
-COPY --from=builder /app/node_modules/tsx ./node_modules/tsx
-COPY --from=builder /app/node_modules/esbuild ./node_modules/esbuild
 COPY --chown=nextjs:nodejs scripts/docker-entrypoint.sh ./docker-entrypoint.sh
 RUN chmod +x ./docker-entrypoint.sh
 
