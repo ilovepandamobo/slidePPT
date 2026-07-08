@@ -1,11 +1,14 @@
 # SlideCraft — 生产镜像（单实例 + 持久卷：SQLite + 本地图片）
 FROM node:20-alpine AS deps
 WORKDIR /app
+RUN apk add --no-cache libc6-compat openssl
 COPY package.json package-lock.json ./
-RUN npm ci
+# postinstall 会跑 prisma generate，此阶段尚无 schema，需跳过
+RUN npm ci --ignore-scripts
 
 FROM node:20-alpine AS builder
 WORKDIR /app
+RUN apk add --no-cache libc6-compat openssl
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -16,7 +19,8 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-RUN addgroup --system --gid 1001 nodejs \
+RUN apk add --no-cache openssl \
+  && addgroup --system --gid 1001 nodejs \
   && adduser --system --uid 1001 --ingroup nodejs nextjs \
   && mkdir -p /data \
   && chown nextjs:nodejs /data

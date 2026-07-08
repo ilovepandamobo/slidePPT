@@ -1,0 +1,28 @@
+name: Docker Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build production image
+        run: docker build -t slidecraft:ci .
+
+      - name: Smoke test container start
+        run: |
+          docker run -d --name slidecraft-ci -p 13000:3000 \
+            -e JWT_SECRET=ci-test-secret \
+            -e RUN_SEED=true \
+            -v slidecraft-ci-data:/data \
+            slidecraft:ci
+          sleep 15
+          curl -fsS http://localhost:13000/ | head -c 200
+          docker logs slidecraft-ci 2>&1 | tail -30
+          docker stop slidecraft-ci
