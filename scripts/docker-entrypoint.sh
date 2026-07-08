@@ -2,6 +2,14 @@
 set -e
 
 export DATA_DIR="${DATA_DIR:-/data}"
+
+# Railway volume mounts as root; fix ownership then drop to nextjs.
+if [ "$(id -u)" = "0" ]; then
+  mkdir -p "$DATA_DIR/slide-images" "$DATA_DIR/style-refs"
+  chown -R nextjs:nodejs "$DATA_DIR"
+  exec su-exec nextjs "$0" "$@"
+fi
+
 mkdir -p "$DATA_DIR/slide-images" "$DATA_DIR/style-refs"
 
 if [ -z "$DATABASE_URL" ]; then
