@@ -1,0 +1,112 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String?
+  passwordHash String
+  plan         String    @default("free")
+  credits      Int       @default(30)
+  brandKit     String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  projects     Project[]
+  media        Media[]
+}
+
+model Project {
+  id              String           @id @default(cuid())
+  title           String
+  userId          String
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  templateId      String?
+  stylePrompt     String?
+  styleReference  String?
+  aspectRatio     String           @default("16:9")
+  imageQuality    String           @default("standard")
+  audience        String?
+  scene           String?
+  outlineRaw      String?
+  styleToken      String?
+  status          String           @default("draft")
+  watermark       Boolean          @default(true)
+  shareToken      String?          @unique
+  sharePassword   String?
+  shareExpiresAt  DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  slides          Slide[]
+  versions        ProjectVersion[]
+  generationJobs  GenerationJob[]
+}
+
+model Slide {
+  id           String   @id @default(cuid())
+  projectId    String
+  project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  order        Int
+  pageType     String   @default("content")
+  title        String
+  content      String
+  notes        String?
+  imageUrl     String?
+  imageHistory String?
+  layout       String   @default("auto")
+  status       String   @default("pending")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([projectId, order])
+}
+
+model ProjectVersion {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  label     String
+  snapshot  String
+  createdAt DateTime @default(now())
+}
+
+model GenerationJob {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  status    String   @default("queued")
+  progress  Int      @default(0)
+  total     Int      @default(0)
+  error     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Media {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  url       String
+  mimeType  String
+  size      Int      @default(0)
+  folder    String   @default("default")
+  createdAt DateTime @default(now())
+}
+
+model Template {
+  id          String   @id
+  name        String
+  category    String
+  description String
+  stylePrompt String
+  colors      String
+  preview     String
+  isPremium   Boolean  @default(false)
+  sortOrder   Int      @default(0)
+}

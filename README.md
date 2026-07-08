@@ -1,36 +1,56 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# SlideCraft — AI 一键专业 PPT
 
-## Getting Started
+输入大纲 + 参考风格，自动生成风格统一的全套演示文稿。支持单页重生成、编辑、导出 PPTX/PDF、分享链接。
 
-First, run the development server:
+## 功能
+
+- 模版中心（12+ 风格）
+- 三步创作向导：风格 → 大纲 → 生成
+- AI 大纲助手 & 智能分页
+- 上传参考风格图
+- 幻灯片编辑器：改字、重生成、删页、加页、上传配图
+- 全 deck 对话改风格
+- 导出 PPTX / PDF
+- 在线放映 & 分享链接
+- 版本历史、项目列表
+- **GrsAI GPT Image 2** 生成幻灯片（推荐）；未配置时回退 SVG 渲染
+
+## 快速开始
 
 ```bash
+npm install
+cp .env.example .env
+npx prisma migrate dev
+npm run db:seed
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+打开 http://localhost:3000
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+**演示账号**：`demo@slidecraft.app` / `demo123456`
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 环境变量
 
-## Learn More
+| 变量 | 说明 |
+|------|------|
+| `DATABASE_URL` | SQLite 路径，默认 `file:./dev.db` |
+| `JWT_SECRET` | 会话密钥 |
+| `GRSAI_API_KEY` | GrsAI API Key，启用 gpt-image-2 |
+| `GRSAI_BASE_URL` | 国内 `https://grsai.dakka.com.cn` 或海外 `https://grsaiapi.com` |
+| `GRSAI_MODEL` | `gpt-image-2` 或 `gpt-image-2-vip` |
+| `OPENAI_API_KEY` | 可选，大纲助手 + DALL·E 备用 |
+| `NEXT_PUBLIC_APP_URL` | 站点 URL，用于分享链接 |
 
-To learn more about Next.js, take a look at the following resources:
+## 云端部署
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+详见 **[DEPLOY.md](./DEPLOY.md)**（Railway + Docker + 持久卷）。
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+快速要点：
 
-## Deploy on Vercel
+1. 用 **Dockerfile** 部署，不要用纯 Serverless  
+2. 挂载持久卷到 **`/data`**（数据库 + 图片）  
+3. 设置 **`JWT_SECRET`**、**`GRSAI_API_KEY`**、**`NEXT_PUBLIC_APP_URL`**
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 技术栈
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Next.js 16 · TypeScript · Tailwind CSS 4 · Prisma · SQLite · pptxgenjs · jspdf
