@@ -15,7 +15,7 @@ node ./node_modules/prisma/build/index.js migrate deploy
 
 if [ "$RUN_SEED" = "true" ]; then
   echo "[slidecraft] seeding database..."
-  node ./node_modules/prisma/build/index.js db seed || true
+  node ./node_modules/tsx/dist/cli.mjs prisma/seed.ts || true
 fi
 
 echo "[slidecraft] starting server on port ${PORT:-3000}..."
