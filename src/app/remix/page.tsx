@@ -24,6 +24,10 @@ import type { ImageQuality } from "@/lib/ai/grsai-config";
 import { resolveGrsaiDrawConfig } from "@/lib/ai/grsai-config";
 import type { RemixPageUpload } from "@/types";
 import { cn } from "@/lib/utils";
+import {
+  parseGenerateResponse,
+  summarizeGenerateResult,
+} from "@/lib/generate-response";
 
 const STEPS = ["目标风格", "原稿截图", "确认焕新"];
 
@@ -47,6 +51,7 @@ function RemixWizard() {
   async function handleGenerate() {
     setLoading(true);
     setError("");
+    let projectId: string | null = null;
     try {
       const meRes = await fetch("/api/auth/me");
       const me = await meRes.json();
@@ -82,7 +87,7 @@ function RemixWizard() {
         throw new Error(createData.error || "创建项目失败");
       }
 
-      const projectId = createData.project.id as string;
+      projectId = createData.project.id as string;
       const drawLabel = resolveGrsaiDrawConfig(aspectRatio, imageQuality).label;
       setGenProgress(
         `${drawLabel} 正在焕新 ${pages.length} 页（保留原稿内容，重设计排版）…`
@@ -93,25 +98,29 @@ function RemixWizard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({}),
       });
-      const genData = await genRes.json();
-      if (!genRes.ok) {
-        throw new Error(genData.error || "生成失败");
-      }
-      if (genData.partial && genData.failures?.length) {
-        const detail = genData.failures
-          .map(
-            (f: { order: number; title: string; error: string }) =>
-              `第${f.order}页: ${f.error}`
-          )
-          .join("\n");
-        setError(`部分页面焕新失败，已完成的页可在编辑器中查看：\n${detail}`);
+      const genData = await parseGenerateResponse(genRes);
+      const summary = summarizeGenerateResult(genData);
+
+      if (projectId) {
+        if (summary) setError(summary);
         router.push(`/editor/${projectId}`);
         return;
       }
 
+      if (!genRes.ok || genData.allFailed) {
+        throw new Error(genData.error || "生成失败");
+      }
+
       router.push(`/editor/${projectId}`);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "焕新失败");
+      if (projectId) {
+        router.push(`/editor/${projectId}`);
+        setError(
+          `${e instanceof Error ? e.message : "焕新异常"}。项目已创建，请到编辑器查看是否已有部分页面完成。`
+        );
+      } else {
+        setError(e instanceof Error ? e.message : "焕新失败");
+      }
     } finally {
       setLoading(false);
     }

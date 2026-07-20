@@ -170,13 +170,19 @@ export async function POST(
       "全部页面生成失败";
     await prisma.generationJob.update({
       where: { id: job.id },
-      data: { status: "failed", error: msg, progress: 0 },
+      data: { status: "failed", error: msg, progress: completed },
     });
     await prisma.project.update({
       where: { id },
       data: { status: "draft" },
     });
-    return NextResponse.json({ error: msg, failures }, { status: 502 });
+    return NextResponse.json({
+      error: msg,
+      failures,
+      project: updated,
+      partial: false,
+      allFailed: true,
+    });
   }
 
   if (session.plan === "free" && creditCost > 0) {
