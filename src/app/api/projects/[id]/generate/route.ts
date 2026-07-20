@@ -22,6 +22,20 @@ type SlideRow = {
   status: string;
 };
 
+async function syncProjectStatus(projectId: string) {
+  const slideStates = await prisma.slide.findMany({
+    where: { projectId },
+    select: { status: true },
+  });
+  const anyGenerating = slideStates.some((s) => s.status === "generating");
+  const anyDone = slideStates.some((s) => s.status === "done");
+  const status = anyGenerating ? "generating" : anyDone ? "ready" : "draft";
+  await prisma.project.update({
+    where: { id: projectId },
+    data: { status },
+  });
+}
+
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -70,6 +84,17 @@ export async function POST(
   const creditCost = slidesToGenerate.length;
   if (session.credits < creditCost && session.plan === "free") {
     return NextResponse.json({ error: "额度不足，请升级套餐" }, { status: 402 });
+  }
+
+  /** 单页并发请求：先原子扣 1 点，避免并行抢额度 */
+  if (session.plan === "free" && creditCost === 1) {
+    const reserved = await prisma.user.updateMany({
+      where: { id: session.id, credits: { gte: 1 } },
+      data: { credits: { decrement: 1 } },
+    });
+    if (reserved.count === 0) {
+      return NextResponse.json({ error: "额度不足，请升级套餐" }, { status: 402 });
+    }
   }
 
   const job = await prisma.generationJob.create({
@@ -159,11 +184,6 @@ export async function POST(
 
   await mapWithConcurrency(slidesToGenerate, concurrency, generateOne);
 
-  const updated = await prisma.project.findUnique({
-    where: { id },
-    include: { slides: { orderBy: { order: "asc" } } },
-  });
-
   if (failures.length === slidesToGenerate.length) {
     const msg =
       failures.map((f) => `第${f.order}页「${f.title}」: ${f.error}`).join("\n") ||
@@ -172,20 +192,21 @@ export async function POST(
       where: { id: job.id },
       data: { status: "failed", error: msg, progress: completed },
     });
-    await prisma.project.update({
+    await syncProjectStatus(id);
+    const failedProject = await prisma.project.findUnique({
       where: { id },
-      data: { status: "draft" },
+      include: { slides: { orderBy: { order: "asc" } } },
     });
     return NextResponse.json({
       error: msg,
       failures,
-      project: updated,
+      project: failedProject,
       partial: false,
       allFailed: true,
     });
   }
 
-  if (session.plan === "free" && creditCost > 0) {
+  if (session.plan === "free" && creditCost > 1) {
     const charged = slidesToGenerate.length - failures.length;
     if (charged > 0) {
       await prisma.user.update({
@@ -207,9 +228,11 @@ export async function POST(
     },
   });
 
-  await prisma.project.update({
+  await syncProjectStatus(id);
+
+  const updated = await prisma.project.findUnique({
     where: { id },
-    data: { status: "ready" },
+    include: { slides: { orderBy: { order: "asc" } } },
   });
 
   return NextResponse.json({

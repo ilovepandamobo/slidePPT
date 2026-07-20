@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { mapWithConcurrency } from "@/lib/generation-concurrency";
 import type { RemixPageUpload } from "@/types";
 
 type Props = {
@@ -44,10 +45,9 @@ export function PageScreenshotUpload({ pages, onChange, className }: Props) {
       }
 
       setUploading(true);
-      const added: RemixPageUpload[] = [];
 
       try {
-        for (const file of list) {
+        const added = await mapWithConcurrency(list, 6, async (file) => {
           const fd = new FormData();
           fd.append("file", file);
           const res = await fetch("/api/upload/slide-image", {
@@ -56,12 +56,12 @@ export function PageScreenshotUpload({ pages, onChange, className }: Props) {
           });
           const data = await res.json();
           if (!res.ok) throw new Error(data.error || "上传失败");
-          added.push({
+          return {
             id: crypto.randomUUID(),
             url: data.url as string,
             name: file.name,
-          });
-        }
+          };
+        });
         onChange([...pages, ...added]);
       } catch (e) {
         setError(e instanceof Error ? e.message : "上传失败");

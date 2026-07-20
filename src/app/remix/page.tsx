@@ -25,9 +25,9 @@ import { resolveGrsaiDrawConfig } from "@/lib/ai/grsai-config";
 import type { RemixPageUpload } from "@/types";
 import { cn } from "@/lib/utils";
 import {
-  parseGenerateResponse,
-  summarizeGenerateResult,
-} from "@/lib/generate-response";
+  generateSlidesParallel,
+  summarizeParallelFailures,
+} from "@/lib/client-generate-slides";
 
 const STEPS = ["目标风格", "原稿截图", "确认焕新"];
 
@@ -88,30 +88,24 @@ function RemixWizard() {
       }
 
       projectId = createData.project.id as string;
+      const slideIds = (createData.project.slides as { id: string }[]).map(
+        (s) => s.id
+      );
       const drawLabel = resolveGrsaiDrawConfig(aspectRatio, imageQuality).label;
       setGenProgress(
-        `${drawLabel} 正在焕新 ${pages.length} 页（保留原稿内容，重设计排版）…`
+        `${drawLabel} 正在并发生成 ${slideIds.length} 页（每页独立请求）…`
       );
 
-      const genRes = await fetch(`/api/projects/${projectId}/generate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
+      const { failures } = await generateSlidesParallel(projectId, slideIds, {
+        onProgress: (done, total) =>
+          setGenProgress(`${drawLabel} 已完成 ${done}/${total} 页…`),
       });
-      const genData = await parseGenerateResponse(genRes);
-      const summary = summarizeGenerateResult(genData);
+      const summary = summarizeParallelFailures(failures, slideIds.length);
 
       if (projectId) {
         if (summary) setError(summary);
         router.push(`/editor/${projectId}`);
-        return;
       }
-
-      if (!genRes.ok || genData.allFailed) {
-        throw new Error(genData.error || "生成失败");
-      }
-
-      router.push(`/editor/${projectId}`);
     } catch (e) {
       if (projectId) {
         router.push(`/editor/${projectId}`);

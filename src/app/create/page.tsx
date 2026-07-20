@@ -31,9 +31,9 @@ import { ImageQualitySelect } from "@/components/create/image-quality-select";
 import type { ImageQuality } from "@/lib/ai/grsai-config";
 import { resolveGrsaiDrawConfig } from "@/lib/ai/grsai-config";
 import {
-  parseGenerateResponse,
-  summarizeGenerateResult,
-} from "@/lib/generate-response";
+  generateSlidesParallel,
+  summarizeParallelFailures,
+} from "@/lib/client-generate-slides";
 
 const STEPS = ["选择风格", "编辑大纲", "确认生成"];
 
@@ -156,29 +156,27 @@ function CreateWizard() {
 
       const drawLabel = resolveGrsaiDrawConfig(aspectRatio, imageQuality).label;
       const pageCount = slides.length;
-      setGenProgress(
-        anchorFirst
-          ? `${drawLabel} 正在生成封面…`
-          : `${drawLabel} 正在并发生成 ${pageCount} 页（全部同时请求，请耐心等待）…`
-      );
-      const genRes = await fetch(`/api/projects/${projectId}/generate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(
-          anchorFirst ? { slideIds: [slides[0].id] } : {}
-        ),
-      });
-      const genData = await parseGenerateResponse(genRes);
-      const summary = summarizeGenerateResult(genData);
+      const slideIds = slides.map((s) => s.id);
 
-      if (projectId) {
+      if (anchorFirst) {
+        setGenProgress(`${drawLabel} 正在生成封面…`);
+        const genRes = await fetch(`/api/projects/${projectId}/generate`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ slideIds: [slideIds[0]] }),
+        });
+        const genData = await genRes.json();
+        if (!genRes.ok) throw new Error(genData.error || "生成失败");
+      } else {
+        setGenProgress(
+          `${drawLabel} 正在并发生成 ${pageCount} 页（每页独立请求）…`
+        );
+        const { failures } = await generateSlidesParallel(projectId, slideIds, {
+          onProgress: (done, total) =>
+            setGenProgress(`${drawLabel} 已完成 ${done}/${total} 页…`),
+        });
+        const summary = summarizeParallelFailures(failures, pageCount);
         if (summary) setError(summary);
-        router.push(`/editor/${projectId}`);
-        return;
-      }
-
-      if (!genRes.ok || genData.allFailed) {
-        throw new Error(genData.error || "生成失败");
       }
 
       router.push(`/editor/${projectId}`);
