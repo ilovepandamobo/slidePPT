@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const nav = [
+  { href: "/create", label: "开始创作" },
+  { href: "/remix", label: "PPT 焕新" },
   { href: "/templates", label: "模版中心" },
   { href: "/projects", label: "我的项目" },
   { href: "/pricing", label: "定价" },
@@ -57,6 +59,11 @@ export function Header({ user }: { user?: { name: string | null; email: string }
               </Link>
               <Link href="/create">
                 <Button size="sm">开始创作</Button>
+              </Link>
+              <Link href="/remix">
+                <Button variant="secondary" size="sm">
+                  PPT 焕新
+                </Button>
               </Link>
             </>
           ) : (

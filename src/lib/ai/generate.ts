@@ -40,11 +40,31 @@ type GenerateOptions = {
   editInstructions?: string | null;
   /** 新页仅上传参考图、尚无成图时，只发这一张参考 */
   referenceOnlyImageUrl?: string | null;
+  /** PPT 焕新：原稿截图路径 */
+  layoutReferenceImageUrl?: string | null;
+  isLayoutRemix?: boolean;
 };
 
 async function collectAllReferenceUrls(
   options: GenerateOptions
 ): Promise<string[]> {
+  if (options.isLayoutRemix) {
+    const urls: string[] = [];
+    const add = async (stored: string | null | undefined) => {
+      if (!stored) return;
+      const refs = await loadStyleReferenceForGrsai(stored);
+      for (const u of refs) {
+        if (!urls.includes(u)) urls.push(u);
+      }
+      if (stored.startsWith("data:") && !urls.includes(stored)) {
+        urls.push(stored);
+      }
+    };
+    await add(options.styleReference);
+    await add(options.layoutReferenceImageUrl);
+    return urls.slice(0, 2);
+  }
+
   if (options.referenceOnlyImageUrl) {
     const refs = await loadStyleReferenceForGrsai(
       options.referenceOnlyImageUrl
@@ -119,11 +139,14 @@ async function buildPromptContext(
         aspectRatio: options.aspectRatio,
         isRedesign: options.isRedesign,
         isUploadReference: options.isUploadReference,
+        isLayoutRemix: options.isLayoutRemix,
         editInstructions: options.editInstructions,
       }
     ),
     referenceUrls,
-    strategy: options.isUploadReference
+    strategy: options.isLayoutRemix
+      ? "PPT 焕新：风格参考 + 原稿截图，保留全部文字仅重设计。"
+      : options.isUploadReference
       ? "上传参考图：按参考图风格与右侧文案生成新幻灯片。"
       : options.isRedesign
         ? "重设计：当前页图片 + 修改说明（说明不会画到幻灯片上）。"

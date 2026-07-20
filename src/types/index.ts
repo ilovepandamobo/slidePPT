@@ -42,3 +42,11 @@ export type SlideLayout =
   | "data";
 
 export type AspectRatio = "16:9" | "4:3" | "9:16";
+
+export type GenerationMode = "outline" | "remix";
+
+export type RemixPageUpload = {
+  id: string;
+  url: string;
+  name: string;
+};

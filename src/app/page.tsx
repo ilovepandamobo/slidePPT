@@ -8,6 +8,7 @@ import {
   Zap,
   Shield,
   Palette,
+  RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TEMPLATES } from "@/lib/templates-data";
@@ -69,8 +70,14 @@ export default function HomePage() {
                 <ArrowRight className="h-5 w-5" />
               </Button>
             </Link>
+            <Link href="/remix">
+              <Button variant="secondary" size="lg" className="min-w-[200px]">
+                <RefreshCw className="h-5 w-5" />
+                PPT 焕新
+              </Button>
+            </Link>
             <Link href="/templates">
-              <Button variant="secondary" size="lg">
+              <Button variant="ghost" size="lg">
                 浏览模版库
               </Button>
             </Link>
@@ -78,6 +85,35 @@ export default function HomePage() {
           <p className="mt-4 text-xs text-slate-600">
             演示账号 demo@slidecraft.app / demo123456
           </p>
+        </div>
+      </section>
+
+      <section className="border-y border-amber-500/10 bg-gradient-to-r from-amber-600/10 via-transparent to-violet-600/10 px-4 py-16 sm:px-6">
+        <div className="mx-auto flex max-w-5xl flex-col items-center gap-8 md:flex-row md:justify-between">
+          <div className="max-w-xl">
+            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs text-amber-300">
+              <RefreshCw className="h-3.5 w-3.5" />
+              新功能
+            </div>
+            <h2 className="text-2xl font-bold text-white sm:text-3xl">
+              已有 PPT？一键焕新排版
+            </h2>
+            <p className="mt-3 text-slate-400">
+              上传每页原稿截图 + 喜欢的风格参考，AI
+              保留全部文字内容，只做专业重设计。不用重新写大纲。
+            </p>
+            <ol className="mt-4 space-y-2 text-sm text-slate-500">
+              <li>1. 上传目标风格参考图</li>
+              <li>2. 上传现有 PPT 每页截图</li>
+              <li>3. AI 焕新全部页面，导出即用</li>
+            </ol>
+          </div>
+          <Link href="/remix">
+            <Button size="lg" className="min-w-[180px] bg-amber-600 hover:bg-amber-500">
+              开始 PPT 焕新
+              <ArrowRight className="h-5 w-5" />
+            </Button>
+          </Link>
         </div>
       </section>
 

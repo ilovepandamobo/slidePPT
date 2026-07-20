@@ -18,6 +18,7 @@ type SlideRow = {
   pageType: string;
   notes: string | null;
   imageUrl: string | null;
+  layoutReference: string | null;
   status: string;
 };
 
@@ -89,6 +90,7 @@ export async function POST(
   let completed = 0;
   const concurrency = getGenerationConcurrency(slidesToGenerate.length);
   const failures: { order: number; title: string; error: string }[] = [];
+  const isLayoutRemix = proj.generationMode === "remix";
 
   const { ensureStoredImageUrl } = await import("@/lib/storage/slide-image");
   let storedUploadRef: string | null = null;
@@ -124,6 +126,8 @@ export async function POST(
           aspectRatio: proj.aspectRatio,
           imageQuality: proj.imageQuality,
           referenceOnlyImageUrl: useRefOnly ? storedUploadRef : null,
+          isLayoutRemix,
+          layoutReferenceImageUrl: slide.layoutReference,
         }
       );
 

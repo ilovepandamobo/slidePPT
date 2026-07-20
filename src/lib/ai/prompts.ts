@@ -22,6 +22,8 @@ export type SlidePromptOptions = {
   isUploadReference?: boolean;
   /** 重设计/参考图模式：用户写的修改说明（不得原样贴到幻灯片上） */
   editInstructions?: string | null;
+  /** PPT 焕新：按原稿截图保留文字、仅换设计 */
+  isLayoutRemix?: boolean;
 };
 
 function inferLayoutStrategy(pageType: string, content: string): string {
@@ -177,7 +179,58 @@ One attached image: the CURRENT version of this slide. Revise it for the user.
 ${userNotes ? `\nUser style notes:\n${userNotes}` : ""}`;
 }
 
+function buildStyleLockForLayoutRemix(options: SlidePromptOptions): string {
+  const userNotes = options.stylePrompt?.trim();
+  return `
+=== PPT REMIX: REDESIGN WITH SAME CONTENT ===
+Two images are attached for this slide:
+
+IMAGE 1 — STYLE REFERENCE (deck-wide):
+- Extract color palette, gradient mood, typography feel, and decorative style FROM THIS IMAGE.
+- Apply these colors and design language to the output slide.
+- Do NOT copy this image's layout or text — it is only the visual style guide.
+
+IMAGE 2 — ORIGINAL SLIDE SCREENSHOT (this page only):
+- This is the user's existing slide with ALL content they want to KEEP.
+- Read every headline, bullet, paragraph, number, chart label, and caption visible in this screenshot.
+- Preserve the MEANING and ALL factual content — do not summarize, omit, or rewrite unless fixing obvious OCR typos.
+- Do NOT copy the ugly layout, spacing, fonts, or colors from this screenshot — only the content/information.
+
+YOUR TASK:
+- Create a beautiful, professional NEW slide design using Image 1's style.
+- Render ALL text content from Image 2 with improved hierarchy, spacing, alignment, and visual polish.
+- Same words, same data, same message — completely new professional layout.
+${userNotes ? `\nUser style notes:\n${userNotes}` : ""}`;
+}
+
+function buildLayoutRemixSection(): string {
+  return `
+=== LAYOUT REMIX MODE ===
+Image 1 = target style (colors/mood). Image 2 = original slide (content source).
+Output one polished slide — never a side-by-side comparison or collage.`;
+}
+
+function buildLayoutRemixContentSection(
+  slide: SlidePromptInput,
+  options: SlidePromptOptions
+): string {
+  const pageLabel = `Slide ${options.pageIndex + 1} of ${options.totalPages}`;
+  return `
+=== PAGE CONTEXT ===
+${pageLabel} | Page role: ${slide.pageType}
+Optional label: ${slide.title}
+
+Content rule:
+- ALL visible text must come from Image 2 (original screenshot). Do not invent new copy.
+- If Image 2 has charts/tables/icons, represent them cleanly in the new design with the same data.
+- Improve typography hierarchy: clear headline, scannable bullets, balanced whitespace.
+- This page should feel part of the same deck as other slides (shared style from Image 1).`;
+}
+
 function buildStyleLockSection(options: SlidePromptOptions): string {
+  if (options.isLayoutRemix) {
+    return buildStyleLockForLayoutRemix(options);
+  }
   if (options.isUploadReference) {
     return buildStyleLockForUploadReference(options);
   }
@@ -278,7 +331,9 @@ function buildHardConstraints(options: SlidePromptOptions): string {
     ? ""
     : "\n- No watermarks, no stock photo credits, no extra branding not in content.";
 
-  const colorRule = options.isUploadReference
+  const colorRule = options.isLayoutRemix
+    ? "\n- Style/colors from Image 1; ALL text/data from Image 2 — never swap or mix them up."
+    : options.isUploadReference
     ? "\n- Align colors and visual style with the uploaded reference where appropriate."
     : options.isRedesign
     ? "\n- Stay consistent with colors and branding in the attached current slide."
@@ -300,19 +355,25 @@ export function buildSlideGenerationPrompt(
   slide: SlidePromptInput,
   options: SlidePromptOptions
 ): string {
-  const isEditMode = options.isRedesign || options.isUploadReference;
+  const isEditMode =
+    options.isRedesign || options.isUploadReference;
+  const isRemix = options.isLayoutRemix;
 
   const parts = [
     "You are an expert presentation designer creating ONE slide for a multi-slide deck.",
     buildStyleLockSection(options),
-    options.isUploadReference
-      ? buildUploadReferenceSection()
-      : options.isRedesign
-        ? buildRedesignSection()
-        : "",
-    isEditMode
-      ? buildEditInstructionsSection(slide, options)
-      : buildContentSection(slide, options),
+    isRemix
+      ? buildLayoutRemixSection()
+      : options.isUploadReference
+        ? buildUploadReferenceSection()
+        : options.isRedesign
+          ? buildRedesignSection()
+          : "",
+    isRemix
+      ? buildLayoutRemixContentSection(slide, options)
+      : isEditMode
+        ? buildEditInstructionsSection(slide, options)
+        : buildContentSection(slide, options),
     buildHardConstraints(options),
   ];
 
@@ -321,8 +382,12 @@ export function buildSlideGenerationPrompt(
 
 export function describePromptStrategy(
   hasReferenceImage: boolean,
-  isRedesign?: boolean
+  isRedesign?: boolean,
+  isLayoutRemix?: boolean
 ): string {
+  if (isLayoutRemix) {
+    return "PPT 焕新：风格参考图 + 原稿截图，保留文字仅重设计。";
+  }
   if (isRedesign) {
     return "重设计：仅当前页图片 + 用户文案。";
   }

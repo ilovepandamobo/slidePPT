@@ -101,6 +101,28 @@ export default function HelpPage() {
       </section>
 
       <section className="mt-12">
+        <h2 className="text-xl font-semibold text-white">PPT 焕新（新功能）</h2>
+        <p className="mt-2 text-sm text-slate-400">
+          已有 PPT 但排版很烂？不用重写大纲，直接上传每页截图即可专业焕新。
+        </p>
+        <ol className="mt-4 list-decimal space-y-2 pl-5 text-slate-400">
+          <li>
+            进入
+            <Link href="/remix" className="mx-1 text-amber-400 hover:underline">
+              PPT 焕新
+            </Link>
+            ，上传你喜欢的目标风格参考图
+          </li>
+          <li>上传现有 PPT 每一页的截图（支持多选批量上传）</li>
+          <li>确认页序后一键焕新 — AI 保留全部文字，仅重设计排版</li>
+          <li>在编辑器中可继续单页微调、导出 PPTX</li>
+        </ol>
+        <Link href="/remix" className="mt-4 inline-block">
+          <Button variant="secondary">前往 PPT 焕新</Button>
+        </Link>
+      </section>
+
+      <section className="mt-12">
         <h2 className="text-xl font-semibold text-white">编辑器技巧</h2>
         <ul className="mt-4 space-y-2 text-slate-400">
           <li>

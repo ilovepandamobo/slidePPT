@@ -18,6 +18,7 @@ const createSchema = z.object({
   imageQuality: z.enum(["standard", "hd"]).optional(),
   audience: z.string().optional(),
   scene: z.string().optional(),
+  generationMode: z.enum(["outline", "remix"]).optional(),
   pages: z
     .array(
       z.object({
@@ -25,6 +26,7 @@ const createSchema = z.object({
         title: z.string(),
         content: z.string(),
         notes: z.string().optional(),
+        layoutReference: z.string().optional(),
       })
     )
     .optional(),
@@ -70,9 +72,32 @@ export async function POST(req: Request) {
 
     if (pages.length === 0) {
       return NextResponse.json(
-        { error: "大纲为空，请先填写内容并点击「智能分页预览」" },
+        {
+          error:
+            body.generationMode === "remix"
+              ? "请至少上传一页原稿截图"
+              : "大纲为空，请先填写内容并点击「智能分页预览」",
+        },
         { status: 400 }
       );
+    }
+
+    if (body.generationMode === "remix") {
+      if (!body.styleReference) {
+        return NextResponse.json(
+          { error: "PPT 焕新需要上传目标风格参考图" },
+          { status: 400 }
+        );
+      }
+      const missingRef = pages.some(
+        (p) => !("layoutReference" in p && p.layoutReference)
+      );
+      if (missingRef) {
+        return NextResponse.json(
+          { error: "每页都需要对应的原稿截图" },
+          { status: 400 }
+        );
+      }
     }
 
     let styleReferenceStored: string | null = body.styleReference || null;
@@ -107,6 +132,7 @@ export async function POST(req: Request) {
         imageQuality: body.imageQuality || "standard",
         ...(body.audience ? { audience: body.audience } : {}),
         ...(body.scene ? { scene: body.scene } : {}),
+        generationMode: body.generationMode || "outline",
         styleToken,
         watermark: session.plan === "free",
         slides: {
@@ -116,6 +142,8 @@ export async function POST(req: Request) {
             title: p.title,
             content: p.content,
             notes: p.notes,
+            layoutReference:
+              "layoutReference" in p ? p.layoutReference : undefined,
             status: "pending",
           })),
         },
