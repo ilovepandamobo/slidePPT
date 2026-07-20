@@ -145,7 +145,7 @@ async function buildPromptContext(
     ),
     referenceUrls,
     strategy: options.isLayoutRemix
-      ? "PPT 焕新：图1=风格（禁文字），图2=内容（禁排版），专业重设计。"
+      ? "PPT 焕新：图1风格，图2内容，仅重排版。"
       : options.isUploadReference
       ? "上传参考图：按参考图风格与右侧文案生成新幻灯片。"
       : options.isRedesign

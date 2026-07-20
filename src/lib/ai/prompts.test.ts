@@ -72,10 +72,10 @@ describe("buildSlideGenerationPrompt", () => {
     assert.ok(!prompt.match(/Must-include[\s\S]*内容：/));
   });
 
-  it("layout remix: strict Image 1 style vs Image 2 content separation", () => {
+  it("layout remix: uses short Chinese prompt only", () => {
     const prompt = buildSlideGenerationPrompt(
       {
-        title: "第 3 页",
+        title: "第 5 页",
         content: "保留原稿截图中的全部文字与数据",
         pageType: "content",
       },
@@ -83,17 +83,15 @@ describe("buildSlideGenerationPrompt", () => {
         template,
         hasReferenceImage: true,
         isLayoutRemix: true,
-        pageIndex: 2,
-        totalPages: 12,
+        pageIndex: 4,
+        totalPages: 6,
       }
     );
-    assert.ok(prompt.includes("TWO-IMAGE CONTRACT"));
-    assert.ok(prompt.includes("urls[0] = IMAGE 1"));
-    assert.ok(prompt.includes("urls[1] = IMAGE 2"));
-    assert.ok(prompt.includes("FORBIDDEN FROM IMAGE 1"));
-    assert.ok(prompt.includes("ANY readable text"));
-    assert.ok(prompt.includes("TEXT SOURCE: Image 2 ONLY"));
-    assert.ok(prompt.includes("Image 1 text is POISON"));
+    assert.equal(
+      prompt,
+      "你是一个专业的 PPT 优化师，只参考图1的设计风格，将图2的内容重新设计排版，不要改变图2的内容，只重新修改风格和排版。"
+    );
+    assert.ok(!prompt.includes("TWO-IMAGE CONTRACT"));
     assert.ok(!prompt.includes("Must-include body text"));
   });
 

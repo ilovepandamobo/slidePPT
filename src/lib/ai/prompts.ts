@@ -179,139 +179,15 @@ One attached image: the CURRENT version of this slide. Revise it for the user.
 ${userNotes ? `\nUser style notes:\n${userNotes}` : ""}`;
 }
 
-function buildStyleLockForLayoutRemix(options: SlidePromptOptions): string {
+function buildLayoutRemixPrompt(options: SlidePromptOptions): string {
   const userNotes = options.stylePrompt?.trim();
-  return `
-=== TWO-IMAGE CONTRACT (READ FIRST — NON-NEGOTIABLE) ===
-Exactly TWO images are attached in fixed order:
-  • urls[0] = IMAGE 1 = STYLE REFERENCE ONLY
-  • urls[1] = IMAGE 2 = CONTENT SOURCE ONLY
-
-These images serve COMPLETELY DIFFERENT roles. Mixing them up is a failure.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-IMAGE 1 — STYLE REFERENCE (urls[0]) — DESIGN SKIN ONLY
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Purpose: Extract visual design language ONLY. This is a "style moodboard".
-
-WHAT TO EXTRACT FROM IMAGE 1 (allowed):
-✓ Background color, gradient direction, and overall tone (dark/light)
-✓ Accent colors, secondary colors, highlight colors
-✓ Typography FEEL: weight (bold/light), modern vs classic, sans vs serif mood
-✓ Decorative language: rounded corners, shadows, borders, glass/blur, geometric shapes
-✓ Icon style, line weight, illustration style (flat/3D/minimal)
-✓ Spacing rhythm and whitespace density (airy vs compact)
-✓ Professional presentation aesthetic level (corporate / tech / editorial)
-
-STRICTLY FORBIDDEN FROM IMAGE 1 (never use):
-✗ ANY readable text: titles, subtitles, bullets, paragraphs, captions, labels
-✗ ANY numbers, statistics, chart data, table cells, dates, names, brands, logos text
-✗ Layout structure: where elements sit, column splits, grid from this image
-✗ The subject matter of photos/diagrams in Image 1 (do not copy its charts/icons/content)
-✗ Copying Image 1's slide as a template — you are NOT editing Image 1
-
-Think of Image 1 as a color/font/mood swatch — NOT a slide to reproduce.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-IMAGE 2 — ORIGINAL SLIDE (urls[1]) — CONTENT SOURCE ONLY
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Purpose: Extract ALL information content. This is the user's actual slide to redesign.
-
-WHAT TO EXTRACT FROM IMAGE 2 (required):
-✓ Every headline, subheadline, bullet point, paragraph — copy text accurately
-✓ All numbers, percentages, metrics, table data, chart labels and values
-✓ Logical hierarchy: which text is title vs body vs footer (rewrite layout, keep words)
-✓ Meaning of diagrams/charts — redraw them professionally with SAME data
-
-STRICTLY FORBIDDEN FROM IMAGE 2 (never reuse):
-✗ Its ugly colors, fonts, backgrounds, gradients
-✗ Its poor spacing, misalignment, cramped layout, clip-art quality
-✗ Its low-quality visual design — you are FIXING the design, not cloning it
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-OUTPUT FORMULA
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Final slide = IMAGE 2's FULL TEXT/DATA + IMAGE 1's DESIGN SYSTEM + NEW professional layout
-
-You are a senior presentation designer. Produce ONE publication-ready slide:
-- Content 100% from Image 2 (same language, same facts, same wording)
-- Visual style 100% from Image 1's design language (colors, mood, decoration style)
-- Layout 100% NEW: professional grid, clear hierarchy, balanced margins, McKinsey/Apple-keynote quality
-${userNotes ? `\nAdditional user style notes (secondary to Image 1):\n${userNotes}` : ""}`;
-}
-
-function buildLayoutRemixSection(): string {
-  return `
-=== LAYOUT REMIX EXECUTION RULES ===
-1. Read Image 2 first — list mentally every text element you must preserve.
-2. Read Image 1 second — note only colors, typography mood, and decorative style.
-3. Compose a NEW slide from scratch using a professional layout pattern suited to Image 2's content volume:
-   - Cover → hero headline zone + subtitle + optional footer strip
-   - Bullets → card grid, columns, or icon pillars (NOT a plain bullet list dump)
-   - Data → large stat callouts or clean chart area with Image 2's numbers
-   - Tables → redesigned clean table with Image 2's cell content only
-4. Apply Image 1's color palette to backgrounds, accents, and typography colors.
-5. Double-check: zero text from Image 1 appears on output; zero styling from Image 2 remains.
-
-ANTI-PATTERNS (instant fail):
-- Showing Image 1's title/company/product name on the slide
-- Side-by-side before/after collage
-- Watermarking or labeling "Image 1" / "Image 2"
-- Mixing brand names from the style reference into the content slide`;
-}
-
-function buildLayoutRemixContentSection(
-  slide: SlidePromptInput,
-  options: SlidePromptOptions
-): string {
-  const pageLabel = `Slide ${options.pageIndex + 1} of ${options.totalPages}`;
-  const layout = inferLayoutStrategy(slide.pageType, "");
-
-  return `
-=== THIS PAGE (${pageLabel}) ===
-Page role hint: ${slide.pageType}
-Internal label (do not print unless it appears in Image 2): ${slide.title}
-
-Design brief:
-- ${layout}
-- Professional keynote/Business PPT quality: generous margins, clear visual hierarchy, no clutter
-- Match content density to Image 2 — if Image 2 has 4 bullets, show 4 bullets (same text), better arranged
-- If Image 2 is in Chinese, output Chinese; if English, output English; preserve mixed language exactly
-- Icons and illustrations should support Image 2's meaning, styled with Image 1's color palette
-
-Final verification checklist before output:
-☑ Every visible word on the output exists in Image 2 (not Image 1)
-☑ Color scheme matches Image 1 (not Image 2)
-☑ Layout is newly designed and professional (not copied from either input image)
-☑ No meta labels like「标题：」「内容：」「配图指引」on the slide`;
-}
-
-function buildHardConstraintsForLayoutRemix(options: SlidePromptOptions): string {
-  const ratio =
-    options.aspectRatio === "4:3"
-      ? "4:3"
-      : options.aspectRatio === "9:16"
-        ? "9:16 vertical"
-        : "16:9 widescreen";
-
-  const wm = options.watermark
-    ? ""
-    : "\n- No watermarks unless present in Image 2 content.";
-
-  return `
-=== HARD CONSTRAINTS (LAYOUT REMIX) ===
-- Output: ONE single professional presentation slide, ${ratio}.
-- TEXT SOURCE: Image 2 ONLY. If a word is not in Image 2, it must NOT appear on the output.
-- STYLE SOURCE: Image 1 ONLY (colors, mood, decoration). Image 1 text is POISON — never render it.
-- Typography: crisp, readable, real rendered text (not placeholder blocks).
-- Quality bar: top-tier corporate presentation — not a screenshot edit, not a filter overlay.
-- No lorem ipsum; no invented marketing copy; no text from the style reference image.${wm}`;
+  const core =
+    "你是一个专业的 PPT 优化师，只参考图1的设计风格，将图2的内容重新设计排版，不要改变图2的内容，只重新修改风格和排版。";
+  if (!userNotes) return core;
+  return `${core}\n补充：${userNotes}`;
 }
 
 function buildStyleLockSection(options: SlidePromptOptions): string {
-  if (options.isLayoutRemix) {
-    return buildStyleLockForLayoutRemix(options);
-  }
   if (options.isUploadReference) {
     return buildStyleLockForUploadReference(options);
   }
@@ -412,9 +288,7 @@ function buildHardConstraints(options: SlidePromptOptions): string {
     ? ""
     : "\n- No watermarks, no stock photo credits, no extra branding not in content.";
 
-  const colorRule = options.isLayoutRemix
-    ? "\n- Style/colors from Image 1; ALL text/data from Image 2 — never swap or mix them up."
-    : options.isUploadReference
+  const colorRule = options.isUploadReference
     ? "\n- Align colors and visual style with the uploaded reference where appropriate."
     : options.isRedesign
     ? "\n- Stay consistent with colors and branding in the attached current slide."
@@ -436,33 +310,28 @@ export function buildSlideGenerationPrompt(
   slide: SlidePromptInput,
   options: SlidePromptOptions
 ): string {
+  if (options.isLayoutRemix) {
+    return buildLayoutRemixPrompt(options);
+  }
+
   const isEditMode =
     options.isRedesign || options.isUploadReference;
-  const isRemix = options.isLayoutRemix;
 
   const parts = [
-    isRemix
-      ? "You are a senior presentation designer performing LAYOUT REMIX: restyle a user's slide using a separate style moodboard. Follow the TWO-IMAGE CONTRACT exactly."
-      : "You are an expert presentation designer creating ONE slide for a multi-slide deck.",
+    "You are an expert presentation designer creating ONE slide for a multi-slide deck.",
     buildStyleLockSection(options),
-    isRemix
-      ? buildLayoutRemixSection()
-      : options.isUploadReference
-        ? buildUploadReferenceSection()
-        : options.isRedesign
-          ? buildRedesignSection()
-          : "",
-    isRemix
-      ? buildLayoutRemixContentSection(slide, options)
-      : isEditMode
-        ? buildEditInstructionsSection(slide, options)
-        : buildContentSection(slide, options),
-    isRemix
-      ? buildHardConstraintsForLayoutRemix(options)
-      : buildHardConstraints(options),
+    options.isUploadReference
+      ? buildUploadReferenceSection()
+      : options.isRedesign
+        ? buildRedesignSection()
+        : "",
+    isEditMode
+      ? buildEditInstructionsSection(slide, options)
+      : buildContentSection(slide, options),
+    buildHardConstraints(options),
   ];
 
-  return isRemix ? parts.join("\n").slice(0, 6000) : parts.join("\n").slice(0, 4000);
+  return parts.join("\n").slice(0, 4000);
 }
 
 export function describePromptStrategy(
@@ -471,7 +340,7 @@ export function describePromptStrategy(
   isLayoutRemix?: boolean
 ): string {
   if (isLayoutRemix) {
-    return "PPT 焕新：图1仅风格（禁文字），图2仅内容（禁排版），专业重设计。";
+    return "PPT 焕新：图1风格，图2内容，仅重排版。";
   }
   if (isRedesign) {
     return "重设计：仅当前页图片 + 用户文案。";
