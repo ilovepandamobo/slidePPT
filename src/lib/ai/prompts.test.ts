@@ -72,6 +72,31 @@ describe("buildSlideGenerationPrompt", () => {
     assert.ok(!prompt.match(/Must-include[\s\S]*内容：/));
   });
 
+  it("layout remix: strict Image 1 style vs Image 2 content separation", () => {
+    const prompt = buildSlideGenerationPrompt(
+      {
+        title: "第 3 页",
+        content: "保留原稿截图中的全部文字与数据",
+        pageType: "content",
+      },
+      {
+        template,
+        hasReferenceImage: true,
+        isLayoutRemix: true,
+        pageIndex: 2,
+        totalPages: 12,
+      }
+    );
+    assert.ok(prompt.includes("TWO-IMAGE CONTRACT"));
+    assert.ok(prompt.includes("urls[0] = IMAGE 1"));
+    assert.ok(prompt.includes("urls[1] = IMAGE 2"));
+    assert.ok(prompt.includes("FORBIDDEN FROM IMAGE 1"));
+    assert.ok(prompt.includes("ANY readable text"));
+    assert.ok(prompt.includes("TEXT SOURCE: Image 2 ONLY"));
+    assert.ok(prompt.includes("Image 1 text is POISON"));
+    assert.ok(!prompt.includes("Must-include body text"));
+  });
+
   it("without reference: uses template palette", () => {
     const prompt = buildSlideGenerationPrompt(
       { title: "封面", content: "x", pageType: "cover" },

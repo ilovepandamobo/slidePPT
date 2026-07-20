@@ -179,8 +179,10 @@ function RemixWizard() {
                 上传你喜欢的目标风格
               </CardTitle>
               <p className="text-xs text-slate-500">
-                找一张你觉得好看的专业 PPT 截图作为风格参考。AI
-                会提取它的配色、字体气质和装饰风格，应用到你的每一页。
+                找一张你觉得好看的专业 PPT 作为风格参考。AI
+                只提取配色、字体气质和装饰风格；风格图上的标题、正文、数据
+                <span className="text-amber-400/90"> 不会 </span>
+                出现在你的成片中。
               </p>
               <StyleReferenceUpload
                 value={styleRef}
@@ -248,7 +250,7 @@ function RemixWizard() {
               </CardTitle>
               <p className="text-xs text-slate-500">
                 把你现有 PPT 每一页导出为图片或截图，按页序上传。AI
-                会读取截图中的全部文字和数据，只做排版美化，不改变内容。
+                只读取截图里的文字和数据，用目标风格重新排版，不会混用风格图里的内容。
               </p>
               <PageScreenshotUpload pages={pages} onChange={setPages} />
             </CardContent>
@@ -323,9 +325,9 @@ function RemixWizard() {
                 </div>
               </div>
               <ul className="space-y-1 text-sm text-slate-400">
-                <li>· 保留原稿截图中的全部文字与数据</li>
-                <li>· 应用目标风格的配色与视觉语言</li>
-                <li>· 每页独立重设计排版，全 deck 风格统一</li>
+                <li>· 图1 风格参考：只取配色与设计感，不取任何文字</li>
+                <li>· 图2 原稿截图：保留全部文字与数据，重设计排版</li>
+                <li>· 输出专业 keynote 级幻灯片，全 deck 风格统一</li>
               </ul>
             </CardContent>
           </Card>
