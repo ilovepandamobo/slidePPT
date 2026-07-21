@@ -48,7 +48,7 @@ export async function generateOutlineHdSlide(params: {
         referenceUrls: refs,
       });
       if (url) {
-        return { url, provider: "grsai-images-4k", usedDrawFallback: false };
+        return { url, provider: "feng-ai-4k", usedDrawFallback: false };
       }
       console.warn("[outline-hd] images/generations returned empty, fallback to draw 1K");
     } catch (e) {

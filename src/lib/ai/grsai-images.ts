@@ -1,11 +1,12 @@
 /**
- * GrsAI DALL·E 格式 — POST /v1/images/generations（4K 优先通道）
- * 文档：prompt + image[] 必填，size 支持 3840x2160 等
+ * 乘丰 Feng AI — POST /v1/images/generations（大纲 4K 优先通道）
+ * 文档：https://api.cphone.vip/docs
  */
 
 import { persistRemoteImage } from "@/lib/ai/grsai";
 
-const DEFAULT_BASE_URL = "https://grsai.dakka.com.cn";
+/** 乘丰 4K 默认节点 */
+const DEFAULT_IMAGES_BASE_URL = "https://api.cphone.vip";
 const PROMPT_MAX = 1000;
 
 export type GrsaiImagesParams = {
@@ -25,11 +26,10 @@ type ImagesGenResponse = {
 };
 
 function getConfig() {
-  const apiKey = process.env.GRSAI_API_KEY;
+  const apiKey =
+    process.env.GRSAI_IMAGES_API_KEY || process.env.GRSAI_API_KEY || "";
   const baseUrl = (
-    process.env.GRSAI_IMAGES_BASE_URL ||
-    process.env.GRSAI_BASE_URL ||
-    DEFAULT_BASE_URL
+    process.env.GRSAI_IMAGES_BASE_URL || DEFAULT_IMAGES_BASE_URL
   ).replace(/\/$/, "");
   return { apiKey, baseUrl };
 }
@@ -78,6 +78,10 @@ export async function generateWithGrsaiImages(
     image: formatImagesApiUrls(params.referenceUrls),
   };
 
+  console.info(
+    `[FengAI 4K] POST ${baseUrl}/v1/images/generations model=${body.model} size=${body.size}`
+  );
+
   const res = await fetch(`${baseUrl}/v1/images/generations`, {
     method: "POST",
     headers: {
@@ -93,13 +97,13 @@ export async function generateWithGrsaiImages(
   try {
     json = JSON.parse(text) as ImagesGenResponse;
   } catch {
-    console.error("[GrsAI images] invalid JSON", res.status, text.slice(0, 200));
+    console.error("[FengAI 4K] invalid JSON", res.status, text.slice(0, 200));
     return null;
   }
 
   if (!res.ok) {
     console.error(
-      "[GrsAI images] HTTP",
+      "[FengAI 4K] HTTP",
       res.status,
       json.error?.message || json.msg || text.slice(0, 200)
     );
@@ -107,13 +111,13 @@ export async function generateWithGrsaiImages(
   }
 
   if (json.code !== undefined && json.code !== 0) {
-    console.error("[GrsAI images] API error", json.code, json.msg);
+    console.error("[FengAI 4K] API error", json.code, json.msg);
     return null;
   }
 
   const remoteUrl = extractImagesUrl(json);
   if (!remoteUrl) {
-    console.error("[GrsAI images] no url in response", json);
+    console.error("[FengAI 4K] no url in response", json);
     return null;
   }
 

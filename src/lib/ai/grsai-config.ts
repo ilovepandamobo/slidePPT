@@ -75,7 +75,7 @@ export function resolveGrsaiImagesConfig(
   return {
     model: process.env.GRSAI_IMAGES_MODEL || "gpt-image-2",
     size: vip4kPixelsForRatio(ratio),
-    label: "GPT Image 2 · DALL-E 4K",
+    label: "乘丰 Feng AI · 4K",
   };
 }
 
