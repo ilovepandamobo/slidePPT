@@ -2,6 +2,10 @@ import { getTemplateById, TEMPLATES } from "@/lib/templates-data";
 import { renderSlideSvg, svgToDataUrl } from "@/lib/slide-renderer";
 import { generateWithGrsai, GrsaiPollTimeoutError } from "@/lib/ai/grsai";
 import {
+  generateOutlineHdSlide,
+  isOutlineHdGeneration,
+} from "@/lib/ai/grsai-hd";
+import {
   buildSlideGenerationPrompt,
   describePromptStrategy,
 } from "@/lib/ai/prompts";
@@ -204,16 +208,35 @@ export async function generateSlideImage(
 
   const quality = parseImageQuality(options.imageQuality);
   const drawConfig = resolveGrsaiDrawConfig(options.aspectRatio, quality);
+  const useOutlineHd = isOutlineHdGeneration(options);
 
   let grsaiUrl: string | null = null;
+  let provider = quality === "hd" ? "grsai-vip-4k" : "grsai";
+
   try {
-    grsaiUrl = await generateWithGrsai({
-      prompt,
-      model: drawConfig.model,
-      aspectRatio: drawConfig.aspectRatio,
-      quality: "high",
-      referenceUrls: referenceUrls.length ? referenceUrls : undefined,
-    });
+    if (useOutlineHd) {
+      const hd = await generateOutlineHdSlide({
+        prompt,
+        referenceUrls: referenceUrls.length ? referenceUrls : undefined,
+        aspectRatio: options.aspectRatio,
+      });
+      grsaiUrl = hd.url;
+      provider = hd.provider;
+      if (hd.usedDrawFallback && hd.url) {
+        console.warn(
+          "[generateSlideImage] 4K DALL-E unavailable, used Draw 1K fallback"
+        );
+      }
+    } else {
+      grsaiUrl = await generateWithGrsai({
+        prompt,
+        model: drawConfig.model,
+        aspectRatio: drawConfig.aspectRatio,
+        quality: "high",
+        referenceUrls: referenceUrls.length ? referenceUrls : undefined,
+      });
+      provider = quality === "hd" ? "grsai-vip-4k" : "grsai";
+    }
   } catch (e) {
     console.warn(
       "[generateSlideImage] GrsAI failed, trying fallback:",
@@ -236,14 +259,16 @@ export async function generateSlideImage(
     return {
       imageUrl: grsaiUrl,
       usedAI: true,
-      provider: quality === "hd" ? "grsai-vip-4k" : "grsai",
+      provider,
       promptStrategy: strategy,
     };
   }
 
   if (quality === "hd") {
     throw new Error(
-      "高清 4K 未能获取图片（提交失败或接口无响应）。请检查 GrsAI 配置后重试，或暂时改用标准画质。"
+      useOutlineHd
+        ? "高清 4K 未能获取图片（DALL·E 与 Draw 回退均失败）。请上传风格参考图后重试，或暂时改用标准画质。"
+        : "高清 4K 未能获取图片（提交失败或接口无响应）。请检查 GrsAI 配置后重试，或暂时改用标准画质。"
     );
   }
 

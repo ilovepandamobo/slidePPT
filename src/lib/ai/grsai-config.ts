@@ -54,7 +54,7 @@ export function resolveGrsaiDrawConfig(
       model: "gpt-image-2-vip",
       aspectRatio: vip4kPixelsForRatio(ratio),
       imageQuality: "hd",
-      label: "GPT Image 2 VIP · 4K",
+      label: "GPT Image 2 · 4K",
     };
   }
 
@@ -64,5 +64,29 @@ export function resolveGrsaiDrawConfig(
     aspectRatio: standardPixelsForRatio(ratio),
     imageQuality: "standard",
     label: "GPT Image 2",
+  };
+}
+
+/** DALL·E 格式 /v1/images/generations — 4K 优先通道 */
+export function resolveGrsaiImagesConfig(
+  projectAspectRatio: string | undefined
+): { model: string; size: string; label: string } {
+  const ratio = projectAspectRatio || "16:9";
+  return {
+    model: process.env.GRSAI_IMAGES_MODEL || "gpt-image-2",
+    size: vip4kPixelsForRatio(ratio),
+    label: "GPT Image 2 · DALL-E 4K",
+  };
+}
+
+/** Draw 回退：供应商现仅稳定支持 1K */
+export function resolveGrsaiDrawFallbackConfig(
+  projectAspectRatio: string | undefined
+): { model: string; aspectRatio: string } {
+  const ratio = projectAspectRatio || "16:9";
+  const defaultModel = process.env.GRSAI_MODEL || "gpt-image-2";
+  return {
+    model: defaultModel === "gpt-image-2-vip" ? "gpt-image-2" : defaultModel,
+    aspectRatio: standardPixelsForRatio(ratio),
   };
 }
