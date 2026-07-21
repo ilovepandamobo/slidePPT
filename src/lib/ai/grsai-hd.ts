@@ -3,7 +3,7 @@
  */
 
 import { generateWithGrsai } from "@/lib/ai/grsai";
-import { generateWithGrsaiImages } from "@/lib/ai/grsai-images";
+import { generateWithGrsaiImages, FENG_4K_DEFAULT_QUALITY } from "@/lib/ai/grsai-images";
 import {
   resolveGrsaiDrawFallbackConfig,
   resolveGrsaiImagesConfig,
@@ -44,7 +44,7 @@ export async function generateOutlineHdSlide(params: {
         prompt: params.prompt,
         size: imagesCfg.size,
         model: imagesCfg.model,
-        quality: "high",
+        quality: FENG_4K_DEFAULT_QUALITY,
         referenceUrls: refs,
       });
       if (url) {

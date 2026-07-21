@@ -67,13 +67,18 @@ export function resolveGrsaiDrawConfig(
   };
 }
 
-/** DALL·E 格式 /v1/images/generations — 4K 优先通道 */
+/** DALL·E 格式 /v1/images/generations — 4K 优先通道（须 gpt-image-2-vip 才输出真 4K） */
 export function resolveGrsaiImagesConfig(
   projectAspectRatio: string | undefined
 ): { model: string; size: string; label: string } {
   const ratio = projectAspectRatio || "16:9";
+  const envModel = process.env.GRSAI_IMAGES_MODEL;
+  const model =
+    envModel && envModel !== "gpt-image-2"
+      ? envModel
+      : "gpt-image-2-vip";
   return {
-    model: process.env.GRSAI_IMAGES_MODEL || "gpt-image-2",
+    model,
     size: vip4kPixelsForRatio(ratio),
     label: "乘丰 Feng AI · 4K",
   };

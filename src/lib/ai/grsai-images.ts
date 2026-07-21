@@ -8,6 +8,8 @@ import { persistRemoteImage } from "@/lib/ai/grsai";
 /** 乘丰 4K 默认节点 */
 const DEFAULT_IMAGES_BASE_URL = "https://api.cphone.vip";
 const PROMPT_MAX = 1000;
+/** 4K 通道固定使用最高画质 */
+export const FENG_4K_DEFAULT_QUALITY = "high" as const;
 
 export type GrsaiImagesParams = {
   prompt: string;
@@ -70,16 +72,16 @@ export async function generateWithGrsaiImages(
   const timeoutMs = Number(process.env.GRSAI_IMAGES_TIMEOUT_MS) || 540_000;
 
   const body = {
-    model: params.model || "gpt-image-2",
+    model: params.model || "gpt-image-2-vip",
     prompt: params.prompt.slice(0, PROMPT_MAX),
     size: params.size,
-    quality: params.quality || "high",
+    quality: params.quality ?? FENG_4K_DEFAULT_QUALITY,
     response_format: "url",
     image: formatImagesApiUrls(params.referenceUrls),
   };
 
   console.info(
-    `[FengAI 4K] POST ${baseUrl}/v1/images/generations model=${body.model} size=${body.size}`
+    `[FengAI 4K] POST ${baseUrl}/v1/images/generations model=${body.model} size=${body.size} quality=${body.quality}`
   );
 
   const res = await fetch(`${baseUrl}/v1/images/generations`, {
