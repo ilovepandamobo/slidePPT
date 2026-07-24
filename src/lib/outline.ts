@@ -293,6 +293,20 @@ export function hasExplicitPageMarkers(raw: string): boolean {
   );
 }
 
+/** 统计行首页标记数量（用于置信度与 LLM 兜底判断） */
+export function countExplicitPageMarkers(raw: string): number {
+  const text = normalizeOutlineInput(raw);
+  let count = 0;
+  for (const line of text.split("\n")) {
+    const trimmed = line.replace(/^#+\s*/, "").trim();
+    if (!trimmed) continue;
+    if (PAGE_HEADER_LINE_RE.test(trimmed)) count++;
+    else if (BRACKET_PAGE_HEADER_RE.test(trimmed)) count++;
+    else if (ENGLISH_PAGE_HEADER_RE.test(trimmed)) count++;
+  }
+  return count;
+}
+
 function hasMarkdownHeaders(raw: string): boolean {
   return /^#{1,3}\s+/m.test(raw);
 }

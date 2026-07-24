@@ -9,7 +9,7 @@
     "lint": "eslint",
     "db:migrate": "prisma migrate dev",
     "db:seed": "npx tsx prisma/seed.ts",
-    "test:outline": "npx tsx --test src/lib/outline.test.ts",
+    "test:outline": "npx tsx --test src/lib/outline.test.ts src/lib/outline/confidence.test.ts",
     "test:prompts": "npx tsx --test src/lib/ai/prompts.test.ts",
     "test:grsai-config": "npx tsx --test src/lib/ai/grsai-config.test.ts",
     "postinstall": "prisma generate"

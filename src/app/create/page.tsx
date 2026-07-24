@@ -34,6 +34,10 @@ import {
   generateSlidesParallel,
   summarizeParallelFailures,
 } from "@/lib/client-generate-slides";
+import {
+  WaitingPlayground,
+  type WaitingVariant,
+} from "@/components/ui/waiting-playground";
 
 const STEPS = ["选择风格", "编辑大纲", "确认生成"];
 
@@ -42,6 +46,7 @@ function CreateWizard() {
   const searchParams = useSearchParams();
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [loadingMode, setLoadingMode] = useState<WaitingVariant>("outline");
   const [error, setError] = useState("");
 
   const [template, setTemplate] = useState<TemplateItem | null>(null);
@@ -57,6 +62,12 @@ function CreateWizard() {
   const [anchorFirst, setAnchorFirst] = useState(false);
   const [topic, setTopic] = useState("");
   const [genProgress, setGenProgress] = useState("");
+  const [resolveSource, setResolveSource] = useState<"rules" | "llm" | null>(
+    null
+  );
+  const [resolveConfidence, setResolveConfidence] = useState<number | null>(
+    null
+  );
 
   useEffect(() => {
     const styleId = searchParams.get("style");
@@ -66,9 +77,13 @@ function CreateWizard() {
     }
   }, [searchParams]);
 
-  async function suggestOutline() {
+  async function suggestOutline(forceNormalize = false) {
+    setLoadingMode("outline");
     setLoading(true);
+    setGenProgress("");
     setError("");
+    setResolveSource(null);
+    setResolveConfidence(null);
     try {
       const res = await fetch("/api/outline/suggest", {
         method: "POST",
@@ -76,11 +91,16 @@ function CreateWizard() {
         body: JSON.stringify({
           outline,
           autoSplit: !hasExplicitPageMarkers(outline),
+          forceNormalize,
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setPages(data.pages);
+      setResolveSource(data.source ?? "rules");
+      setResolveConfidence(
+        typeof data.confidence === "number" ? data.confidence : null
+      );
       if (data.suggestedTitle && !title.trim()) {
         setTitle(data.suggestedTitle);
       }
@@ -94,6 +114,7 @@ function CreateWizard() {
 
   async function assistOutline() {
     if (!topic.trim()) return;
+    setLoadingMode("assist");
     setLoading(true);
     try {
       const res = await fetch("/api/outline/assist", {
@@ -109,6 +130,7 @@ function CreateWizard() {
   }
 
   async function handleGenerate() {
+    setLoadingMode("generate");
     setLoading(true);
     setError("");
     let projectId: string | null = null;
@@ -196,6 +218,17 @@ function CreateWizard() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
+      <WaitingPlayground
+        open={loading}
+        variant={loadingMode}
+        progress={
+          loadingMode === "generate"
+            ? genProgress
+            : loadingMode === "outline" && genProgress
+              ? genProgress
+              : undefined
+        }
+      />
       <h1 className="text-2xl font-bold text-white">创建演示文稿</h1>
 
       <div className="mt-8 flex gap-2">
@@ -386,7 +419,7 @@ Page 1: Cover  /  【第1页】封面
                   已识别 {parseOutline(outline).length} 页
                   {hasExplicitPageMarkers(outline)
                     ? "（严格按页码标记分页，不会拆成续页）"
-                    : "（可点「确认大纲」预览分页）"}
+                    : "（格式不确定时，确认大纲将自动用 AI 识别）"}
                 </p>
               )}
             </CardContent>
@@ -395,9 +428,12 @@ Page 1: Cover  /  【第1页】封面
             <Button variant="ghost" onClick={() => setStep(0)}>
               <ChevronLeft className="h-4 w-4" /> 上一步
             </Button>
-            <Button onClick={suggestOutline} disabled={loading || !outline.trim()}>
+            <Button
+              onClick={() => suggestOutline(false)}
+              disabled={loading || !outline.trim()}
+            >
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              确认大纲
+              {loading ? "识别大纲中…" : "确认大纲"}
             </Button>
           </div>
         </div>
@@ -420,9 +456,33 @@ Page 1: Cover  /  【第1页】封面
           )}
           <Card>
             <CardContent className="pt-6">
-              <p className="text-slate-400">
-                预计 <strong className="text-white">{pages.length}</strong> 页
-              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-slate-400">
+                  预计 <strong className="text-white">{pages.length}</strong> 页
+                </p>
+                {resolveSource && (
+                  <span
+                    className={cn(
+                      "rounded-full px-2 py-0.5 text-xs",
+                      resolveSource === "llm"
+                        ? "bg-amber-500/15 text-amber-300"
+                        : "bg-emerald-500/15 text-emerald-300"
+                    )}
+                  >
+                    {resolveSource === "llm" ? "AI 识别" : "规则识别"}
+                  </span>
+                )}
+                {resolveSource === "rules" && (
+                  <button
+                    type="button"
+                    onClick={() => void suggestOutline(true)}
+                    disabled={loading}
+                    className="text-xs text-violet-400 hover:text-violet-300 disabled:opacity-50"
+                  >
+                    用 AI 重新识别
+                  </button>
+                )}
+              </div>
               <ul className="mt-4 max-h-[400px] space-y-2 overflow-y-auto">
                 {pages.map((p, i) => (
                   <li

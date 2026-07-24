@@ -60,3 +60,82 @@ body {
   background: rgba(255, 255, 255, 0.15);
   border-radius: 4px;
 }
+
+/* WaitingPlayground — 幻灯片叠放 + 进度条动画 */
+@keyframes waiting-slide-a {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-6deg) scale(1);
+  }
+  33% {
+    transform: translateY(-6px) rotate(-3deg) scale(1.02);
+  }
+  66% {
+    transform: translateY(2px) rotate(-8deg) scale(0.98);
+  }
+}
+
+@keyframes waiting-slide-b {
+  0%,
+  100% {
+    transform: translateY(8px) rotate(2deg) scale(0.96);
+  }
+  50% {
+    transform: translateY(2px) rotate(5deg) scale(1);
+  }
+}
+
+@keyframes waiting-slide-c {
+  0%,
+  100% {
+    transform: translateY(16px) rotate(8deg) scale(0.92);
+  }
+  50% {
+    transform: translateY(10px) rotate(4deg) scale(0.95);
+  }
+}
+
+@keyframes waiting-indeterminate {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(420%);
+  }
+}
+
+@keyframes waiting-spark-float {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-6px) scale(1.15);
+  }
+}
+
+.waiting-slide-a {
+  animation: waiting-slide-a 2.4s ease-in-out infinite;
+}
+.waiting-slide-b {
+  animation: waiting-slide-b 2.4s ease-in-out infinite 0.25s;
+}
+.waiting-slide-c {
+  animation: waiting-slide-c 2.4s ease-in-out infinite 0.5s;
+}
+
+.waiting-indeterminate {
+  animation: waiting-indeterminate 1.6s ease-in-out infinite;
+}
+
+.waiting-spark-1 {
+  animation: waiting-spark-float 2s ease-in-out infinite;
+}
+.waiting-spark-2 {
+  animation: waiting-spark-float 2.3s ease-in-out infinite 0.4s;
+}
+.waiting-spark-3 {
+  animation: waiting-spark-float 1.8s ease-in-out infinite 0.8s;
+}

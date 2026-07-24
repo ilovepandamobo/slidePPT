@@ -28,6 +28,7 @@ import {
   generateSlidesParallel,
   summarizeParallelFailures,
 } from "@/lib/client-generate-slides";
+import { WaitingPlayground } from "@/components/ui/waiting-playground";
 
 const STEPS = ["目标风格", "原稿截图", "确认焕新"];
 
@@ -51,6 +52,7 @@ function RemixWizard() {
   async function handleGenerate() {
     setLoading(true);
     setError("");
+    setGenProgress("");
     let projectId: string | null = null;
     try {
       const meRes = await fetch("/api/auth/me");
@@ -122,6 +124,11 @@ function RemixWizard() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
+      <WaitingPlayground
+        open={loading}
+        variant="generate"
+        progress={genProgress}
+      />
       <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs text-amber-300">
         <Sparkles className="h-3.5 w-3.5" />
         新功能 · PPT 焕新
@@ -154,13 +161,6 @@ function RemixWizard() {
       {error && (
         <div className="mt-4 whitespace-pre-wrap rounded-xl bg-red-500/10 px-4 py-3 text-sm text-red-400">
           {error}
-        </div>
-      )}
-
-      {genProgress && loading && (
-        <div className="mt-4 flex items-center gap-2 rounded-xl bg-violet-500/10 px-4 py-3 text-sm text-violet-300">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          {genProgress}
         </div>
       )}
 

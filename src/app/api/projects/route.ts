@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
-import { parseOutline } from "@/lib/outline";
+import { resolveOutline } from "@/lib/outline/resolve";
 import { buildStyleToken } from "@/lib/ai/generate";
 import { resolveProjectStylePrompt } from "@/lib/ai/prompts";
 import { getTemplateById } from "@/lib/templates-data";
@@ -63,7 +63,9 @@ export async function POST(req: Request) {
     const pages =
       body.pages && body.pages.length > 0
         ? body.pages
-        : parseOutline(body.outlineRaw || "").map((p) => ({
+        : (
+            await resolveOutline(body.outlineRaw || "")
+          ).pages.map((p) => ({
             pageType: p.pageType,
             title: p.title,
             content: p.content,
