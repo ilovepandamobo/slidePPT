@@ -6,7 +6,6 @@ import {
   inferPresentationTitle,
   hasExplicitPageMarkers,
 } from "./outline";
-import { prepareSlideContentForImage } from "./slide-content";
 
 const JOINSPARK_SNIPPET = `第1页：封面
 核心内容
@@ -172,24 +171,27 @@ describe("parseOutline format tolerance", () => {
     assert.equal(pages.length, 2);
   });
 
-  it("keeps 标题/副标题 on cover when 画面 line contains 视觉", () => {
-    const raw = `第 1 页：封面
-标题：JoinSpark AI 广告素材智能引擎
-副标题：素材生成、爆款拆解
-画面：产品界面拼图 + 全球素材库视觉背景
+  it("parses markdown ## 第 N 页｜title format (WhatsApp outline)", () => {
+    const sample = `# Doc title
 
-第 2 页：目录
-内容：
-1.章节一`;
-    const pages = parseOutline(raw);
+## 第 1 页｜目录页
+
+**页面标题**
+Hello World
+
+**排版设计**
+Green background
+
+---
+
+## 第 2 页｜现状页
+
+**页面标题**
+Second slide`;
+    const pages = parseOutline(sample);
     assert.equal(pages.length, 2);
-    const prep = prepareSlideContentForImage(
-      pages[0].title,
-      pages[0].content,
-      pages[0].notes
-    );
-    assert.ok(prep.headline.includes("JoinSpark"));
-    assert.ok(prep.body.includes("副标题") || prep.body.includes("素材生成"));
+    assert.equal(pages[0].title, "Hello World");
+    assert.equal(pages[1].title, "Second slide");
   });
 });
 

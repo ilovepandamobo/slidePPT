@@ -33,11 +33,11 @@ function normalizeBullets(text: string): string {
 const PAGE_NUM = String.raw`(?:\d+|[一二三四五六七八九十百零〇两]+)`;
 const PAGE_MARKER_RE = new RegExp(`第\\s*${PAGE_NUM}\\s*页`, "i");
 const PAGE_HEADER_LINE_RE = new RegExp(
-  `^第\\s*${PAGE_NUM}\\s*页\\s*[:：]?\\s*(.*)$`,
+  `^第\\s*${PAGE_NUM}\\s*页\\s*[:：｜|\\-—]?\\s*(.*)$`,
   "i"
 );
 const PAGE_HEADER_RE = new RegExp(
-  `^第\\s*${PAGE_NUM}\\s*页\\s*[:：]?\\s*(.+?)(?:\\r?\\n|$)`,
+  `^第\\s*${PAGE_NUM}\\s*页\\s*[:：｜|\\-—]?\\s*(.+?)(?:\\r?\\n|$)`,
   "i"
 );
 const ENGLISH_PAGE_HEADER_RE =
@@ -73,8 +73,13 @@ function hasBracketPageMarkers(raw: string): boolean {
   );
 }
 
+/** 去掉 Markdown # 前缀，便于识别 ## 第 1 页｜标题 */
+function normalizeOutlineLine(line: string): string {
+  return line.replace(/^#+\s*/, "").trim();
+}
+
 function isPageHeaderLine(line: string): boolean {
-  const trimmed = line.trim();
+  const trimmed = normalizeOutlineLine(line);
   if (!trimmed) return false;
   if (PAGE_HEADER_LINE_RE.test(trimmed)) return true;
   if (BRACKET_PAGE_HEADER_RE.test(trimmed)) return true;
@@ -83,7 +88,7 @@ function isPageHeaderLine(line: string): boolean {
 }
 
 function extractPageTitleFromHeader(headerLine: string): string {
-  const line = headerLine.trim();
+  const line = normalizeOutlineLine(headerLine);
   for (const re of [
     BRACKET_PAGE_HEADER_RE,
     PAGE_HEADER_LINE_RE,
@@ -100,46 +105,39 @@ function extractPageTitleFromHeader(headerLine: string): string {
   return "未命名页面";
 }
 
-function processPageBody(body: string): { content: string; notes?: string } {
-  let notes = "";
-  const guideSplit = body.split(
-    /(?:^|\n)\s*(?:配图指引|画面(?:说明)?|配图(?:要求)?)\s*[:：]?\s*/i
-  );
-  if (guideSplit.length > 1) {
-    body = guideSplit[0].trim();
-    notes = guideSplit.slice(1).join("\n").trim();
-  }
-
+function processPageBody(body: string): {
+  content: string;
+  notes?: string;
+  titleFromBody?: string;
+} {
   body = body
     .replace(/^核心(?:内容|表达)\s*[:：]?\s*/i, "")
     .replace(/^内容(?:建议)?\s*[:：]?\s*/im, "")
     .trim();
 
   const structured = parseStructuredPageBody(body);
-  body = normalizeBullets(structured.content);
-  if (structured.titleFromBody && !body.includes(structured.titleFromBody)) {
-    body = [`标题：${structured.titleFromBody}`, body].filter(Boolean).join("\n");
-  }
-  if (structured.notes) {
-    notes = notes ? `${notes}\n${structured.notes}` : structured.notes;
+  const content = normalizeBullets(structured.content);
+  let notes = structured.notes;
+
+  if (notes && !/^排版设计|^配图指引|^画面/m.test(notes)) {
+    notes = `配图指引：\n${normalizeBullets(notes.replace(/^画面\s*[:：]\s*/i, ""))}`;
   }
 
-  if (notes) {
-    notes = notes.startsWith("配图指引")
-      ? notes
-      : `配图指引：\n${normalizeBullets(notes.replace(/^画面\s*[:：]\s*/i, ""))}`;
-  }
-
-  return { content: body, notes: notes || undefined };
+  return {
+    content,
+    notes: notes || undefined,
+    titleFromBody: structured.titleFromBody,
+  };
 }
 
 function parsePageBlock(block: string): OutlinePage {
   const lines = block.split("\n");
   const headerLine = lines[0]?.trim() || "";
-  const pageTitle = extractPageTitleFromHeader(headerLine);
+  const sectionLabel = extractPageTitleFromHeader(headerLine);
   const body = processPageBody(lines.slice(1).join("\n").trim());
+  const pageTitle = body.titleFromBody || sectionLabel;
   return {
-    pageType: detectPageType(pageTitle),
+    pageType: detectPageType(sectionLabel || pageTitle),
     title: pageTitle,
     content: body.content,
     notes: body.notes,
@@ -163,6 +161,7 @@ function parseChinesePageFormat(raw: string): OutlinePage[] | null {
   const lines = text.split("\n");
   const blocks: string[] = [];
   let current: string[] = [];
+  let seenPage = false;
 
   const flush = () => {
     const joined = current.join("\n").trim();
@@ -172,9 +171,11 @@ function parseChinesePageFormat(raw: string): OutlinePage[] | null {
 
   for (const line of lines) {
     if (isPageHeaderLine(line)) {
-      flush();
-      current.push(line);
-    } else {
+      if (seenPage) flush();
+      else seenPage = true;
+      current.push(normalizeOutlineLine(line));
+    } else if (seenPage) {
+      if (/^---+$/.test(line.trim())) continue;
       current.push(line);
     }
   }
