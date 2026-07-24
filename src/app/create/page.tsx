@@ -366,12 +366,14 @@ function CreateWizard() {
                     }
                   }
                 }}
-                placeholder={`推荐格式：
+                placeholder={`支持多种页码写法（每页一行开头）：
+第1页：封面  /  第 1 页：封面  /  第1页封面  /  第一页 封面
+Page 1: Cover  /  【第1页】封面
+
 第1页：封面
-核心内容
+核心内容 / 内容 / 标题：
 ●主标题：你的产品名
-●副标题：一句话价值
-配图指引
+画面 / 配图指引：
 ●背景与视觉说明
 
 第2页：目录
@@ -383,7 +385,7 @@ function CreateWizard() {
                 <p className="text-xs text-violet-400">
                   已识别 {parseOutline(outline).length} 页
                   {hasExplicitPageMarkers(outline)
-                    ? "（严格按「第N页」分页，单页内容由 AI 排版，不会拆成续页）"
+                    ? "（严格按页码标记分页，不会拆成续页）"
                     : "（可点「确认大纲」预览分页）"}
                 </p>
               )}

@@ -31,64 +31,157 @@ function normalizeBullets(text: string): string {
 
 /** 第1页 / 第一页 / 第十七页 等页码（阿拉伯数字或中文数字，冒号可选） */
 const PAGE_NUM = String.raw`(?:\d+|[一二三四五六七八九十百零〇两]+)`;
-const PAGE_MARKER_RE = new RegExp(`第\\s*${PAGE_NUM}\\s*页`);
-const PAGE_SPLIT_RE = new RegExp(
-  `(?=第\\s*${PAGE_NUM}\\s*页(?:\\s*[:：]|\\s))`
-);
+const PAGE_MARKER_RE = new RegExp(`第\\s*${PAGE_NUM}\\s*页`, "i");
 const PAGE_HEADER_LINE_RE = new RegExp(
-  `^第\\s*${PAGE_NUM}\\s*页\\s*[:：]?\\s*(.*)$`
+  `^第\\s*${PAGE_NUM}\\s*页\\s*[:：]?\\s*(.*)$`,
+  "i"
 );
 const PAGE_HEADER_RE = new RegExp(
-  `^第\\s*${PAGE_NUM}\\s*页\\s*[:：]?\\s*(.+?)(?:\\r?\\n|$)`
+  `^第\\s*${PAGE_NUM}\\s*页\\s*[:：]?\\s*(.+?)(?:\\r?\\n|$)`,
+  "i"
+);
+const ENGLISH_PAGE_HEADER_RE =
+  /^(?:Page|Slide|PPT|幻灯片)\s*(\d+)\s*[:：\-—]?\s*(.*)$/i;
+const BRACKET_PAGE_HEADER_RE = new RegExp(
+  `^[【\\[]\\s*第\\s*${PAGE_NUM}\\s*页\\s*[】\\]]\\s*(.*)$`,
+  "i"
 );
 
-/** 解析「第N页：标题」/「第一页 标题」+ 核心内容 + 配图指引 格式 */
-function parseChinesePageFormat(raw: string): OutlinePage[] | null {
-  if (!PAGE_MARKER_RE.test(raw)) return null;
+/** 统一全角数字/标点、换行，减少「格式细微不同」导致的漏识别 */
+export function normalizeOutlineInput(raw: string): string {
+  return raw
+    .replace(/\r\n/g, "\n")
+    .replace(/\u00A0/g, " ")
+    .replace(/[\uFF10-\uFF19]/g, (c) =>
+      String.fromCharCode(c.charCodeAt(0) - 0xff10 + 0x30)
+    )
+    .replace(/[\uFF01-\uFF5E]/g, (c) =>
+      String.fromCharCode(c.charCodeAt(0) - 0xfee0)
+    )
+    .trim();
+}
 
-  const blocks = raw
-    .split(PAGE_SPLIT_RE)
-    .map((b) => b.trim())
-    .filter(Boolean);
+function hasEnglishPageMarkers(raw: string): boolean {
+  return /(?:^|\n)\s*(?:Page|Slide|PPT|幻灯片)\s*\d+\s*[:：\-—]?/im.test(
+    raw
+  );
+}
+
+function hasBracketPageMarkers(raw: string): boolean {
+  return new RegExp(`(?:^|\\n)\\s*[【\\[]\\s*第\\s*${PAGE_NUM}\\s*页`, "im").test(
+    raw
+  );
+}
+
+function isPageHeaderLine(line: string): boolean {
+  const trimmed = line.trim();
+  if (!trimmed) return false;
+  if (PAGE_HEADER_LINE_RE.test(trimmed)) return true;
+  if (BRACKET_PAGE_HEADER_RE.test(trimmed)) return true;
+  if (ENGLISH_PAGE_HEADER_RE.test(trimmed)) return true;
+  return false;
+}
+
+function extractPageTitleFromHeader(headerLine: string): string {
+  const line = headerLine.trim();
+  for (const re of [
+    BRACKET_PAGE_HEADER_RE,
+    PAGE_HEADER_LINE_RE,
+    ENGLISH_PAGE_HEADER_RE,
+  ]) {
+    const m = line.match(re);
+    if (m) {
+      const title = (m[m.length - 1] || "").trim();
+      if (title) return title;
+    }
+  }
+  const glued = line.match(new RegExp(`^第\\s*${PAGE_NUM}\\s*页(.+)$`, "i"));
+  if (glued?.[1]?.trim()) return glued[1].trim();
+  return "未命名页面";
+}
+
+function processPageBody(body: string): { content: string; notes?: string } {
+  let notes = "";
+  const guideSplit = body.split(
+    /(?:^|\n)\s*(?:配图指引|画面(?:说明)?|配图(?:要求)?)\s*[:：]?\s*/i
+  );
+  if (guideSplit.length > 1) {
+    body = guideSplit[0].trim();
+    notes = guideSplit.slice(1).join("\n").trim();
+  }
+
+  body = body
+    .replace(/^核心(?:内容|表达)\s*[:：]?\s*/i, "")
+    .replace(/^内容(?:建议)?\s*[:：]?\s*/im, "")
+    .trim();
+
+  const structured = parseStructuredPageBody(body);
+  body = normalizeBullets(structured.content);
+  if (structured.titleFromBody && !body.includes(structured.titleFromBody)) {
+    body = [`标题：${structured.titleFromBody}`, body].filter(Boolean).join("\n");
+  }
+  if (structured.notes) {
+    notes = notes ? `${notes}\n${structured.notes}` : structured.notes;
+  }
+
+  if (notes) {
+    notes = notes.startsWith("配图指引")
+      ? notes
+      : `配图指引：\n${normalizeBullets(notes.replace(/^画面\s*[:：]\s*/i, ""))}`;
+  }
+
+  return { content: body, notes: notes || undefined };
+}
+
+function parsePageBlock(block: string): OutlinePage {
+  const lines = block.split("\n");
+  const headerLine = lines[0]?.trim() || "";
+  const pageTitle = extractPageTitleFromHeader(headerLine);
+  const body = processPageBody(lines.slice(1).join("\n").trim());
+  return {
+    pageType: detectPageType(pageTitle),
+    title: pageTitle,
+    content: body.content,
+    notes: body.notes,
+  };
+}
+
+/**
+ * 解析「第N页：标题」/「第 1 页：封面」/「第1页封面」/「Page 1:」/「【第1页】」等
+ * 仅在行首识别页标记，避免正文里的「参见第2页」误拆
+ */
+function parseChinesePageFormat(raw: string): OutlinePage[] | null {
+  const text = normalizeOutlineInput(raw);
+  if (
+    !PAGE_MARKER_RE.test(text) &&
+    !hasEnglishPageMarkers(text) &&
+    !hasBracketPageMarkers(text)
+  ) {
+    return null;
+  }
+
+  const lines = text.split("\n");
+  const blocks: string[] = [];
+  let current: string[] = [];
+
+  const flush = () => {
+    const joined = current.join("\n").trim();
+    if (joined) blocks.push(joined);
+    current = [];
+  };
+
+  for (const line of lines) {
+    if (isPageHeaderLine(line)) {
+      flush();
+      current.push(line);
+    } else {
+      current.push(line);
+    }
+  }
+  flush();
 
   if (blocks.length === 0) return null;
-
-  return blocks.map((block) => {
-    const headerMatch = block.match(PAGE_HEADER_RE);
-    const pageTitle = headerMatch?.[1]?.trim() || "未命名页面";
-    let body = block
-      .replace(new RegExp(`^第\\s*${PAGE_NUM}\\s*页\\s*[:：]?[^\\n]*\\n?`), "")
-      .trim();
-
-    let notes = "";
-    const guideSplit = body.split(/配图指引\s*[:：]?\s*/);
-    if (guideSplit.length > 1) {
-      body = guideSplit[0].trim();
-      notes = guideSplit.slice(1).join("\n").trim();
-    }
-
-    body = body.replace(/^核心内容\s*[:：]?\s*/i, "").trim();
-    const structured = parseStructuredPageBody(body);
-    body = normalizeBullets(structured.content);
-    if (structured.notes) {
-      notes = notes
-        ? `${notes}\n${structured.notes}`
-        : structured.notes;
-    }
-
-    if (notes) {
-      notes = notes.startsWith("配图指引")
-        ? notes
-        : `配图指引：\n${normalizeBullets(notes.replace(/^画面\s*[:：]\s*/i, ""))}`;
-    }
-
-    return {
-      pageType: detectPageType(pageTitle),
-      title: pageTitle,
-      content: body,
-      notes: notes || undefined,
-    };
-  });
+  return blocks.map(parsePageBlock);
 }
 
 /** Markdown / 混合格式（# 标题、--- 分隔，不误伤正文编号列表） */
@@ -123,12 +216,9 @@ function parseMarkdownFormat(raw: string): OutlinePage[] {
       continue;
     }
 
-    if (PAGE_HEADER_LINE_RE.test(line)) {
+    if (isPageHeaderLine(line)) {
       flush();
-      const title = line.replace(
-        new RegExp(`^第\\s*${PAGE_NUM}\\s*页\\s*[:：]?\\s*`),
-        ""
-      ).trim();
+      const title = extractPageTitleFromHeader(line);
       current = {
         pageType: detectPageType(title),
         title: title || `第 ${pages.length + 1} 页`,
@@ -192,9 +282,14 @@ function parseMarkdownFormat(raw: string): OutlinePage[] {
   return pages;
 }
 
-/** 用户用「第1页：」/「第一页」等标记时，页数与边界以大纲为准，禁止自动拆页 */
+/** 用户用「第1页：」/「第一页」/「Page 1:」等标记时，页数与边界以大纲为准 */
 export function hasExplicitPageMarkers(raw: string): boolean {
-  return PAGE_MARKER_RE.test(raw);
+  const text = normalizeOutlineInput(raw);
+  return (
+    PAGE_MARKER_RE.test(text) ||
+    hasEnglishPageMarkers(text) ||
+    hasBracketPageMarkers(text)
+  );
 }
 
 function hasMarkdownHeaders(raw: string): boolean {
@@ -231,7 +326,7 @@ function parseFreeformText(raw: string): OutlinePage[] {
 }
 
 export function parseOutline(raw: string): OutlinePage[] {
-  const trimmed = raw.trim();
+  const trimmed = normalizeOutlineInput(raw);
   if (!trimmed) return [];
 
   const chinese = parseChinesePageFormat(trimmed);

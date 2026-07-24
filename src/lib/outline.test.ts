@@ -6,6 +6,7 @@ import {
   inferPresentationTitle,
   hasExplicitPageMarkers,
 } from "./outline";
+import { prepareSlideContentForImage } from "./slide-content";
 
 const JOINSPARK_SNIPPET = `第1页：封面
 核心内容
@@ -136,6 +137,59 @@ describe("parseOutline freeform", () => {
     assert.ok(pages[0].content.includes("数量有限先到先得"));
     assert.ok(pages[0].content.includes("Upsell成功的am"));
     assert.equal(pages[0].content.length, TABOOLA_PARA.length);
+  });
+});
+
+describe("parseOutline format tolerance", () => {
+  it("parses 第1页封面 without colon or space after 页", () => {
+    const pages = parseOutline("第1页封面\n内容A\n第2页目录\n内容B");
+    assert.equal(pages.length, 2);
+    assert.equal(pages[0].title, "封面");
+    assert.equal(pages[1].title, "目录");
+  });
+
+  it("parses spaced 第 N 页 format (12-page style)", () => {
+    const sample = `第 1 页：封面
+标题：JoinSpark
+第 2 页：目录
+内容：A`;
+    assert.equal(parseOutline(sample).length, 2);
+  });
+
+  it("parses fullwidth digits 第１页", () => {
+    const pages = parseOutline("第１页：封面\n第２页：目录");
+    assert.equal(pages.length, 2);
+  });
+
+  it("parses English Page N headers", () => {
+    const pages = parseOutline("Page 1: Cover\nBody\nPage 2: TOC\nItems");
+    assert.equal(pages.length, 2);
+    assert.equal(pages[0].title, "Cover");
+  });
+
+  it("parses bracket markers 【第1页】", () => {
+    const pages = parseOutline("【第1页】封面\n内容\n【第2页】目录\n内容");
+    assert.equal(pages.length, 2);
+  });
+
+  it("keeps 标题/副标题 on cover when 画面 line contains 视觉", () => {
+    const raw = `第 1 页：封面
+标题：JoinSpark AI 广告素材智能引擎
+副标题：素材生成、爆款拆解
+画面：产品界面拼图 + 全球素材库视觉背景
+
+第 2 页：目录
+内容：
+1.章节一`;
+    const pages = parseOutline(raw);
+    assert.equal(pages.length, 2);
+    const prep = prepareSlideContentForImage(
+      pages[0].title,
+      pages[0].content,
+      pages[0].notes
+    );
+    assert.ok(prep.headline.includes("JoinSpark"));
+    assert.ok(prep.body.includes("副标题") || prep.body.includes("素材生成"));
   });
 });
 
