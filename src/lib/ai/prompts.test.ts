@@ -9,6 +9,25 @@ import { TEMPLATES } from "@/lib/templates-data";
 const template = TEMPLATES[0];
 
 describe("buildSlideGenerationPrompt", () => {
+  it("with reference: puts outline content before style lock (4K-safe order)", () => {
+    const prompt = buildSlideGenerationPrompt(
+      { title: "封面", content: "主标题", pageType: "cover" },
+      {
+        template,
+        hasReferenceImage: true,
+        pageIndex: 0,
+        totalPages: 4,
+        styleToken: "ref-abc",
+      }
+    );
+    const contentIdx = prompt.indexOf("主标题");
+    const styleIdx = prompt.indexOf("PRIMARY COLOR");
+    assert.ok(contentIdx >= 0);
+    assert.ok(styleIdx >= 0);
+    assert.ok(contentIdx < styleIdx, "content must precede style lock");
+    assert.ok(prompt.slice(0, 1000).includes("主标题"));
+  });
+
   it("with reference: forbids template blue palette and requires image colors", () => {
     const prompt = buildSlideGenerationPrompt(
       { title: "封面", content: "主标题", pageType: "cover" },

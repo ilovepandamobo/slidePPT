@@ -20,6 +20,10 @@ describe("isOutlineHdGeneration", () => {
     assert.equal(isOutlineHdGeneration({ imageQuality: "hd" }), true);
     assert.equal(
       isOutlineHdGeneration({ imageQuality: "hd", isLayoutRemix: true }),
+      true
+    );
+    assert.equal(
+      isOutlineHdGeneration({ imageQuality: "hd", isRedesign: true }),
       false
     );
   });

@@ -154,7 +154,11 @@ async function buildPromptContext(
       ? "上传参考图：按参考图风格与右侧文案生成新幻灯片。"
       : options.isRedesign
         ? "重设计：当前页图片 + 修改说明（说明不会画到幻灯片上）。"
-        : describePromptStrategy(hasRef),
+        : describePromptStrategy(
+            hasRef,
+            options.isRedesign,
+            options.isLayoutRemix
+          ),
   };
 }
 
@@ -224,7 +228,7 @@ export async function generateSlideImage(
       provider = hd.provider;
       if (hd.usedDrawFallback && hd.url) {
         console.warn(
-          "[generateSlideImage] 4K DALL-E unavailable, used Draw 1K fallback"
+          "[generateSlideImage] 4K Feng AI unavailable, used Draw 1K fallback"
         );
       }
     } else {

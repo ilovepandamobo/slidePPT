@@ -310,6 +310,7 @@ export function buildSlideGenerationPrompt(
   slide: SlidePromptInput,
   options: SlidePromptOptions
 ): string {
+  /** PPT 焕新：独立短口令，与大纲生成完全分离 */
   if (options.isLayoutRemix) {
     return buildLayoutRemixPrompt(options);
   }
@@ -317,17 +318,27 @@ export function buildSlideGenerationPrompt(
   const isEditMode =
     options.isRedesign || options.isUploadReference;
 
+  const intro =
+    "You are an expert presentation designer creating ONE slide for a multi-slide deck.";
+
+  /** 大纲生成：正文优先，避免 4K 通道截断时只剩风格参考指令 */
+  if (!isEditMode) {
+    const parts = [
+      intro,
+      buildContentSection(slide, options),
+      buildStyleLockSection(options),
+      buildHardConstraints(options),
+    ];
+    return parts.join("\n").slice(0, 4000);
+  }
+
   const parts = [
-    "You are an expert presentation designer creating ONE slide for a multi-slide deck.",
+    intro,
     buildStyleLockSection(options),
     options.isUploadReference
       ? buildUploadReferenceSection()
-      : options.isRedesign
-        ? buildRedesignSection()
-        : "",
-    isEditMode
-      ? buildEditInstructionsSection(slide, options)
-      : buildContentSection(slide, options),
+      : buildRedesignSection(),
+    buildEditInstructionsSection(slide, options),
     buildHardConstraints(options),
   ];
 

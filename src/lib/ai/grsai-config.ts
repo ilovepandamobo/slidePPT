@@ -84,6 +84,17 @@ export function resolveGrsaiImagesConfig(
   };
 }
 
+/** 生成进度/日志展示用标签 */
+export function resolveGenerationLabel(
+  projectAspectRatio: string | undefined,
+  imageQuality: ImageQuality
+): string {
+  if (imageQuality === "hd") {
+    return resolveGrsaiImagesConfig(projectAspectRatio).label;
+  }
+  return resolveGrsaiDrawConfig(projectAspectRatio, imageQuality).label;
+}
+
 /** Draw 回退：供应商现仅稳定支持 1K */
 export function resolveGrsaiDrawFallbackConfig(
   projectAspectRatio: string | undefined

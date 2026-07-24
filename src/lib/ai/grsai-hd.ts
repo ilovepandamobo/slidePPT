@@ -1,5 +1,5 @@
 /**
- * 大纲创作 · 高清 4K：优先 DALL·E /v1/images/generations，失败回退 Draw 1K
+ * 大纲 / PPT 焕新 · 高清 4K：优先乘丰 /v1/images/generations，失败回退 Draw 1K
  */
 
 import { generateWithGrsai } from "@/lib/ai/grsai";
@@ -23,7 +23,6 @@ export function isOutlineHdGeneration(options: {
 }): boolean {
   return (
     options.imageQuality === "hd" &&
-    !options.isLayoutRemix &&
     !options.isRedesign &&
     !options.isUploadReference
   );

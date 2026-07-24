@@ -7,7 +7,8 @@ import { persistRemoteImage } from "@/lib/ai/grsai";
 
 /** 乘丰 4K 默认节点 */
 const DEFAULT_IMAGES_BASE_URL = "https://api.cphone.vip";
-const PROMPT_MAX = 1000;
+/** 与 buildSlideGenerationPrompt 上限一致；过短会截掉大纲正文，只剩「参考风格图」指令 */
+export const FENG_IMAGES_PROMPT_MAX = 4000;
 /** 4K 通道固定使用最高画质 */
 export const FENG_4K_DEFAULT_QUALITY = "high" as const;
 
@@ -73,7 +74,7 @@ export async function generateWithGrsaiImages(
 
   const body = {
     model: params.model || "gpt-image-2-vip",
-    prompt: params.prompt.slice(0, PROMPT_MAX),
+    prompt: params.prompt.slice(0, FENG_IMAGES_PROMPT_MAX),
     size: params.size,
     quality: params.quality ?? FENG_4K_DEFAULT_QUALITY,
     response_format: "url",

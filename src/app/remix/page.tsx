@@ -21,7 +21,7 @@ import { StyleReferenceUpload } from "@/components/create/style-reference-upload
 import { PageScreenshotUpload } from "@/components/remix/page-screenshot-upload";
 import { ImageQualitySelect } from "@/components/create/image-quality-select";
 import type { ImageQuality } from "@/lib/ai/grsai-config";
-import { resolveGrsaiDrawConfig } from "@/lib/ai/grsai-config";
+import { resolveGenerationLabel } from "@/lib/ai/grsai-config";
 import type { RemixPageUpload } from "@/types";
 import { cn } from "@/lib/utils";
 import {
@@ -91,7 +91,7 @@ function RemixWizard() {
       const slideIds = (createData.project.slides as { id: string }[]).map(
         (s) => s.id
       );
-      const drawLabel = resolveGrsaiDrawConfig(aspectRatio, imageQuality).label;
+      const drawLabel = resolveGenerationLabel(aspectRatio, imageQuality);
       setGenProgress(
         `${drawLabel} 正在并发生成 ${slideIds.length} 页（每页独立请求）…`
       );
