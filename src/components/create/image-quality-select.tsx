@@ -40,7 +40,7 @@ export function ImageQualitySelect({ value, onChange, className }: Props) {
       </div>
       {value === "hd" && (
         <p className="mt-2 text-xs text-amber-400/90">
-          高清 4K 走乘丰 gpt-image-2-vip（约 1300 积分/页），需上传风格参考图。
+          高清 4K 走乘丰 gpt-image-2-vip（约 1300 积分/页）。首次生成需风格参考图；编辑器修改会以当前页图片为参考。
         </p>
       )}
     </div>

@@ -16,7 +16,7 @@ describe("formatImagesApiUrls", () => {
 });
 
 describe("isOutlineHdGeneration", () => {
-  it("true for outline hd only", () => {
+  it("true for all hd flows including editor redesign", () => {
     assert.equal(isOutlineHdGeneration({ imageQuality: "hd" }), true);
     assert.equal(
       isOutlineHdGeneration({ imageQuality: "hd", isLayoutRemix: true }),
@@ -24,8 +24,13 @@ describe("isOutlineHdGeneration", () => {
     );
     assert.equal(
       isOutlineHdGeneration({ imageQuality: "hd", isRedesign: true }),
-      false
+      true
     );
+    assert.equal(
+      isOutlineHdGeneration({ imageQuality: "hd", isUploadReference: true }),
+      true
+    );
+    assert.equal(isOutlineHdGeneration({ imageQuality: "standard" }), false);
   });
 });
 

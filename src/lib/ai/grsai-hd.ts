@@ -1,5 +1,5 @@
 /**
- * 大纲 / PPT 焕新 · 高清 4K：优先乘丰 /v1/images/generations，失败回退 Draw 1K
+ * 高清 4K（首次生成 / 编辑器修改 / 焕新）：优先乘丰 /v1/images/generations，失败回退 Draw 1K
  */
 
 import { generateWithGrsai } from "@/lib/ai/grsai";
@@ -15,17 +15,14 @@ export type OutlineHdResult = {
   usedDrawFallback: boolean;
 };
 
+/** 项目设为 hd 时一律走乘丰 4K（含编辑器重设计、上传参考修改） */
 export function isOutlineHdGeneration(options: {
   imageQuality?: string | null;
   isLayoutRemix?: boolean;
   isRedesign?: boolean;
   isUploadReference?: boolean;
 }): boolean {
-  return (
-    options.imageQuality === "hd" &&
-    !options.isRedesign &&
-    !options.isUploadReference
-  );
+  return options.imageQuality === "hd";
 }
 
 export async function generateOutlineHdSlide(params: {
