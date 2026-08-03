@@ -231,12 +231,12 @@ function CreateWizard() {
       />
       <h1 className="text-2xl font-bold text-white">创建演示文稿</h1>
 
-      <div className="mt-8 flex gap-2">
+      <div className="mt-8 flex gap-2 overflow-x-auto pb-1">
         {STEPS.map((s, i) => (
           <div
             key={s}
             className={cn(
-              "flex flex-1 items-center gap-2 rounded-xl px-4 py-3 text-sm",
+              "flex min-w-[5.5rem] flex-1 items-center gap-2 rounded-xl px-3 py-2.5 text-xs sm:min-w-0 sm:px-4 sm:py-3 sm:text-sm",
               i === step
                 ? "bg-violet-600/20 text-violet-300 border border-violet-500/30"
                 : i < step

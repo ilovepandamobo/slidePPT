@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Header } from "@/components/layout/header";
 import { ConditionalFooter } from "@/components/layout/conditional-footer";
@@ -8,6 +8,12 @@ export const metadata: Metadata = {
   title: "SlideCraft — AI 一键专业 PPT",
   description:
     "输入大纲与参考风格，AI 自动生成风格统一的专业演示文稿。支持单页重生成、编辑、导出 PPTX/PDF。",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default async function RootLayout({

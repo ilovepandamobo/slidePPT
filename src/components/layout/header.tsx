@@ -101,9 +101,27 @@ export function Header({ user }: { user?: { name: string | null; email: string }
               {item.label}
             </Link>
           ))}
-          <Link href="/create" className="mt-2 block">
+          {user ? (
+            <p className="py-2 text-sm text-slate-500">
+              {user.name || user.email.split("@")[0]}
+            </p>
+          ) : null}
+          <Link href="/create" className="mt-2 block" onClick={() => setOpen(false)}>
             <Button className="w-full">开始创作</Button>
           </Link>
+          {user ? (
+            <Link href="/remix" className="mt-2 block" onClick={() => setOpen(false)}>
+              <Button variant="secondary" className="w-full">
+                PPT 焕新
+              </Button>
+            </Link>
+          ) : (
+            <Link href="/login" className="mt-2 block" onClick={() => setOpen(false)}>
+              <Button variant="ghost" className="w-full">
+                登录
+              </Button>
+            </Link>
+          )}
         </div>
       )}
     </header>

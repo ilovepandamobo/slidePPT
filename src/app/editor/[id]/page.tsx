@@ -637,14 +637,14 @@ export default function EditorPage() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] flex-col">
-      <div className="flex items-center justify-between border-b border-white/5 px-4 py-3">
-        <div className="flex items-center gap-3">
+    <div className="flex min-h-[calc(100dvh-4rem)] flex-col">
+      <div className="flex flex-col gap-2 border-b border-white/5 px-3 py-2 sm:flex-row sm:items-center sm:justify-between sm:px-4 sm:py-3">
+        <div className="flex min-w-0 items-center gap-2">
           <Button variant="ghost" size="sm" onClick={() => router.push("/projects")}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
           <Input
-            className="h-9 w-48 border-none bg-transparent text-lg font-semibold"
+            className="h-9 min-w-0 flex-1 border-none bg-transparent text-base font-semibold sm:max-w-xs sm:text-lg"
             value={project.title}
             onChange={(e) =>
               setProject({ ...project, title: e.target.value })
@@ -658,28 +658,28 @@ export default function EditorPage() {
             }}
           />
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={saveVersion}>
-            <History className="h-4 w-4" /> 保存版本
+        <div className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:pb-0">
+          <Button variant="ghost" size="sm" className="shrink-0" onClick={saveVersion}>
+            <History className="h-4 w-4" /> <span className="hidden sm:inline">保存版本</span>
           </Button>
-          <Button variant="ghost" size="sm" onClick={shareProject}>
-            <Share2 className="h-4 w-4" /> 分享
+          <Button variant="ghost" size="sm" className="shrink-0" onClick={shareProject}>
+            <Share2 className="h-4 w-4" /> <span className="hidden sm:inline">分享</span>
           </Button>
-          <Button variant="ghost" size="sm" onClick={() => setPresenting(true)}>
-            <Play className="h-4 w-4" /> 放映
+          <Button variant="ghost" size="sm" className="shrink-0" onClick={() => setPresenting(true)}>
+            <Play className="h-4 w-4" /> <span className="hidden sm:inline">放映</span>
           </Button>
-          <Button variant="ghost" size="sm" onClick={() => exportDeck("pdf")} disabled={deckBusy}>
+          <Button variant="ghost" size="sm" className="shrink-0" onClick={() => exportDeck("pdf")} disabled={deckBusy}>
             <Download className="h-4 w-4" /> PDF
           </Button>
-          <Button size="sm" onClick={() => exportDeck("pptx")} disabled={deckBusy}>
-            <Download className="h-4 w-4" /> 导出 PPTX
+          <Button size="sm" className="shrink-0" onClick={() => exportDeck("pptx")} disabled={deckBusy}>
+            <Download className="h-4 w-4" /> PPTX
           </Button>
         </div>
       </div>
 
       {showShare && shareUrl && (
-        <div className="mx-4 mt-2 flex items-center gap-2 rounded-xl bg-emerald-500/10 px-4 py-2 text-sm text-emerald-400">
-          分享链接：{shareUrl}
+        <div className="mx-3 mt-2 flex flex-wrap items-center gap-2 rounded-xl bg-emerald-500/10 px-3 py-2 text-sm text-emerald-400 sm:mx-4 sm:px-4">
+          <span className="break-all">分享链接：{shareUrl}</span>
           <button onClick={() => navigator.clipboard.writeText(shareUrl)} className="underline">
             复制
           </button>
@@ -697,15 +697,15 @@ export default function EditorPage() {
         </div>
       )}
 
-      <div className="flex flex-1 overflow-hidden">
-        <aside className="w-48 shrink-0 overflow-y-auto border-r border-white/5 bg-black/20 p-2">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row">
+        <aside className="flex shrink-0 gap-2 overflow-x-auto border-b border-white/5 bg-black/20 p-2 lg:block lg:w-48 lg:overflow-y-auto lg:border-b-0 lg:border-r">
           {project.slides.map((s, i) => (
             <button
               key={s.id}
               type="button"
               onClick={() => setActiveIndex(i)}
               className={cn(
-                "mb-2 w-full overflow-hidden rounded-lg border text-left transition",
+                "w-28 shrink-0 overflow-hidden rounded-lg border text-left transition lg:mb-2 lg:w-full",
                 i === activeIndex
                   ? "border-violet-500 ring-1 ring-violet-500"
                   : "border-white/10 hover:border-white/20",
@@ -732,12 +732,17 @@ export default function EditorPage() {
               </p>
             </button>
           ))}
-          <Button variant="ghost" size="sm" className="mt-2 w-full" onClick={addSlide}>
-            <Plus className="h-4 w-4" /> 添加页面
+          <Button
+            variant="ghost"
+            size="sm"
+            className="mt-0 w-28 shrink-0 lg:mt-2 lg:w-full"
+            onClick={addSlide}
+          >
+            <Plus className="h-4 w-4" /> 添加
           </Button>
         </aside>
 
-        <div className="flex flex-1 flex-col items-center justify-center overflow-auto bg-[#0a0a12] p-6">
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-auto bg-[#0a0a12] p-3 sm:p-6">
           <div
             className={cn(
               "relative w-full max-w-4xl overflow-hidden rounded-xl shadow-2xl",
@@ -799,7 +804,7 @@ export default function EditorPage() {
           </div>
         </div>
 
-        <aside className="w-80 shrink-0 overflow-y-auto border-l border-white/5 bg-black/20 p-4">
+        <aside className="max-h-[42dvh] w-full shrink-0 overflow-y-auto border-t border-white/5 bg-black/20 p-3 sm:p-4 lg:max-h-none lg:w-80 lg:border-l lg:border-t-0">
           {slide && (
             <div className="space-y-4">
               <h3 className="font-medium text-white">编辑当前页</h3>
