@@ -1,7 +1,10 @@
-/** 仅在调用 GrsAI 且图片过大时后台使用，用户上传阶段不调用 */
+/** 上传参考图：适度压缩以节省磁盘（AI 参考无需原图 4K PNG） */
+export const UPLOAD_REF_TARGET_BYTES = 2 * 1024 * 1024;
+export const UPLOAD_REF_MAX_EDGE = 2048;
 
-const TARGET_BYTES = 8 * 1024 * 1024;
-const MAX_EDGE = 3072;
+/** 幻灯片成图：4K JPEG 保留分辨率，避免 PNG 占满磁盘 */
+export const SLIDE_TARGET_BYTES = 4 * 1024 * 1024;
+export const SLIDE_MAX_EDGE = 3840;
 
 export type OptimizeResult = {
   buffer: Buffer;
@@ -13,11 +16,14 @@ export type OptimizeResult = {
 
 export async function optimizeImageBuffer(
   input: Buffer,
-  mimeHint?: string
+  mimeHint?: string,
+  options?: { targetBytes?: number; maxEdge?: number; force?: boolean }
 ): Promise<OptimizeResult> {
+  const TARGET_BYTES = options?.targetBytes ?? 8 * 1024 * 1024;
+  const MAX_EDGE = options?.maxEdge ?? 3072;
   const originalBytes = input.length;
 
-  if (originalBytes <= TARGET_BYTES) {
+  if (!options?.force && originalBytes <= TARGET_BYTES) {
     const ext = extFromMime(mimeHint || "image/jpeg");
     return {
       buffer: input,
@@ -47,8 +53,8 @@ export async function optimizeImageBuffer(
       buffer = await sharp(input)
         .rotate()
         .resize({
-          width: 2560,
-          height: 2560,
+          width: MAX_EDGE,
+          height: MAX_EDGE,
           fit: "inside",
           withoutEnlargement: true,
         })

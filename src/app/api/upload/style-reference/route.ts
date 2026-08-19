@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { persistStyleReference } from "@/lib/storage/style-reference";
+import { formatStorageWriteError } from "@/lib/storage/disk-space";
 
 export async function POST(req: Request) {
   try {
@@ -21,7 +22,7 @@ export async function POST(req: Request) {
       size: file.size,
     });
   } catch (e) {
-    const message = e instanceof Error ? e.message : "上传失败";
-    return NextResponse.json({ error: message }, { status: 400 });
+    const message = formatStorageWriteError(e);
+    return NextResponse.json({ error: message }, { status: 507 });
   }
 }

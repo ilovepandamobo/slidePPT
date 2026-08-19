@@ -35,5 +35,5 @@ export function pushImageToHistory(
       label: label || "历史版本",
     },
     ...history,
-  ].slice(0, 12);
+  ].slice(0, 6);
 }

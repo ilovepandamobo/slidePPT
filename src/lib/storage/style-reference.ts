@@ -1,7 +1,8 @@
 import { mkdir, readFile, writeFile } from "fs/promises";
 import path from "path";
 import { randomUUID } from "crypto";
-import { optimizeImageBuffer } from "./image-optimize";
+import { optimizeImageBuffer, UPLOAD_REF_MAX_EDGE, UPLOAD_REF_TARGET_BYTES } from "./image-optimize";
+import { assertDiskSpace, formatStorageWriteError, isEnospcError } from "./disk-space";
 
 const DATA_ROOT =
   process.env.DATA_DIR || path.join(process.cwd(), "data");
@@ -34,7 +35,7 @@ function extFromMime(mime: string): string {
   return "jpg";
 }
 
-/** 原图保存，不压缩、不限制大小（与竞品一致） */
+/** 参考图保存：压缩后写入，节省 Railway Volume 空间 */
 export async function persistStyleReference(
   dataUrl: string
 ): Promise<{ path: string }> {
@@ -47,13 +48,24 @@ export async function persistStyleReference(
   }
 
   const mime = match[1];
-  const buf = Buffer.from(match[2], "base64");
+  const raw = Buffer.from(match[2], "base64");
 
-  const ext = extFromMime(mime);
+  const { buffer: buf, ext } = await optimizeImageBuffer(raw, mime, {
+    targetBytes: UPLOAD_REF_TARGET_BYTES,
+    maxEdge: UPLOAD_REF_MAX_EDGE,
+    force: raw.length > 512 * 1024,
+  });
+
   const id = randomUUID();
   await mkdir(REF_DIR, { recursive: true });
+  await assertDiskSpace(REF_DIR, buf.length + 512 * 1024);
   const filename = `${id}.${ext}`;
-  await writeFile(path.join(REF_DIR, filename), buf);
+  try {
+    await writeFile(path.join(REF_DIR, filename), buf);
+  } catch (e) {
+    if (isEnospcError(e)) throw new Error(formatStorageWriteError(e));
+    throw e;
+  }
 
   return { path: `/api/files/style-refs/${filename}` };
 }

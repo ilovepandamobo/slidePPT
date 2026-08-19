@@ -1,6 +1,12 @@
 import { mkdir, readFile, writeFile } from "fs/promises";
 import path from "path";
 import { randomUUID } from "crypto";
+import {
+  optimizeImageBuffer,
+  SLIDE_MAX_EDGE,
+  SLIDE_TARGET_BYTES,
+} from "./image-optimize";
+import { assertDiskSpace, formatStorageWriteError, isEnospcError } from "./disk-space";
 
 const DATA_ROOT =
   process.env.DATA_DIR || path.join(process.cwd(), "data");
@@ -73,10 +79,26 @@ export async function persistSlideImage(source: string): Promise<string> {
     mime = detected;
   }
 
+  if (mime !== "image/svg+xml") {
+    const optimized = await optimizeImageBuffer(buf, mime, {
+      targetBytes: SLIDE_TARGET_BYTES,
+      maxEdge: SLIDE_MAX_EDGE,
+      force: buf.length > SLIDE_TARGET_BYTES,
+    });
+    buf = Buffer.from(optimized.buffer);
+    mime = optimized.mime;
+  }
+
   await mkdir(SLIDE_DIR, { recursive: true });
+  await assertDiskSpace(SLIDE_DIR, buf.length + 512 * 1024);
   const ext = extFromMime(mime);
   const filename = `${randomUUID()}.${ext}`;
-  await writeFile(getSlideImageFilePath(filename), buf);
+  try {
+    await writeFile(getSlideImageFilePath(filename), buf);
+  } catch (e) {
+    if (isEnospcError(e)) throw new Error(formatStorageWriteError(e));
+    throw e;
+  }
   return `/api/files/slide-images/${filename}`;
 }
 

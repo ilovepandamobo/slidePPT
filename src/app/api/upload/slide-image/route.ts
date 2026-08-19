@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { persistSlideImage } from "@/lib/storage/slide-image";
+import { formatStorageWriteError } from "@/lib/storage/disk-space";
 
 export async function POST(req: Request) {
   const session = await getSession();
@@ -25,7 +26,7 @@ export async function POST(req: Request) {
     const url = await persistSlideImage(dataUrl);
     return NextResponse.json({ url, name: file.name });
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "上传失败";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    const msg = formatStorageWriteError(e);
+    return NextResponse.json({ error: msg }, { status: 507 });
   }
 }
