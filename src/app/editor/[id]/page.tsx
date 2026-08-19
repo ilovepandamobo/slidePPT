@@ -637,7 +637,7 @@ export default function EditorPage() {
   }
 
   return (
-    <div className="flex min-h-[calc(100dvh-4rem)] flex-col">
+    <div className="flex h-[calc(100dvh-4rem)] flex-col overflow-hidden">
       <div className="flex flex-col gap-2 border-b border-white/5 px-3 py-2 sm:flex-row sm:items-center sm:justify-between sm:px-4 sm:py-3">
         <div className="flex min-w-0 items-center gap-2">
           <Button variant="ghost" size="sm" onClick={() => router.push("/projects")}>
@@ -698,7 +698,7 @@ export default function EditorPage() {
       )}
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row">
-        <aside className="flex shrink-0 gap-2 overflow-x-auto border-b border-white/5 bg-black/20 p-2 lg:block lg:w-48 lg:overflow-y-auto lg:border-b-0 lg:border-r">
+        <aside className="flex shrink-0 gap-2 overflow-x-auto border-b border-white/5 bg-black/20 p-2 lg:block lg:w-48 lg:shrink-0 lg:overflow-y-auto lg:border-b-0 lg:border-r">
           {project.slides.map((s, i) => (
             <button
               key={s.id}
@@ -742,10 +742,11 @@ export default function EditorPage() {
           </Button>
         </aside>
 
-        <div className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-auto bg-[#0a0a12] p-3 sm:p-6">
+        <div className="flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-auto bg-[#0a0a12] p-3 sm:p-6">
+          <div className="flex w-full max-w-4xl flex-col items-center">
           <div
             className={cn(
-              "relative w-full max-w-4xl overflow-hidden rounded-xl shadow-2xl",
+              "relative w-full overflow-hidden rounded-xl shadow-2xl",
               project.aspectRatio === "9:16" ? "aspect-[9/16] max-w-md" : "aspect-video"
             )}
           >
@@ -802,9 +803,10 @@ export default function EditorPage() {
               <ChevronRight />
             </Button>
           </div>
+          </div>
         </div>
 
-        <aside className="max-h-[42dvh] w-full shrink-0 overflow-y-auto border-t border-white/5 bg-black/20 p-3 sm:p-4 lg:max-h-none lg:w-80 lg:border-l lg:border-t-0">
+        <aside className="max-h-[42dvh] w-full shrink-0 overflow-y-auto border-t border-white/5 bg-black/20 p-3 sm:p-4 lg:h-full lg:max-h-none lg:w-80 lg:shrink-0 lg:border-l lg:border-t-0">
           {slide && (
             <div className="space-y-4">
               <h3 className="font-medium text-white">编辑当前页</h3>
