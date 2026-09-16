@@ -270,7 +270,7 @@ function CreateWizard() {
               <div className="border-t border-white/10 pt-4">
                 <p className="mb-1 text-sm font-medium text-white">上传参考风格图</p>
                 <p className="mb-3 text-xs text-slate-500">
-                  原图上传，无大小限制；只提取色系与风格，每页按大纲单独排版
+                  参考图自动压缩保存；只提取色系与风格，每页按大纲单独排版
                 </p>
                 <StyleReferenceUpload
                   value={styleRef}

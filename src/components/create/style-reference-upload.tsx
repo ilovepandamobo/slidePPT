@@ -130,7 +130,7 @@ export function StyleReferenceUpload({ value, onChange, className }: Props) {
             />
           </div>
           <p className="px-4 py-2 text-xs text-slate-500">
-            原图保存，无大小限制；仅提取色系与设计风格，每页按大纲单独排版
+            自动压缩后保存；仅提取色系与设计风格，每页按大纲单独排版
           </p>
         </div>
       ) : (
@@ -162,7 +162,7 @@ export function StyleReferenceUpload({ value, onChange, className }: Props) {
             {uploading ? "上传中…" : "点击或拖拽上传参考图"}
           </p>
           <p className="mt-1 text-xs text-slate-500">
-            PNG / JPG / WebP / GIF，与原图一致保存
+            PNG / JPG / WebP / GIF
           </p>
         </div>
       )}

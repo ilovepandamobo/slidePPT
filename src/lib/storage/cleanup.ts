@@ -1,7 +1,7 @@
 import { readdir, stat, unlink } from "fs/promises";
 import path from "path";
 import { prisma } from "@/lib/db";
-import { parseImageHistory } from "@/lib/slide-image-history";
+import { parseImageHistory, serializeImageHistory } from "@/lib/slide-image-history";
 
 const DATA_ROOT = process.env.DATA_DIR || path.join(process.cwd(), "data");
 const SLIDE_DIR = path.join(DATA_ROOT, "slide-images");
@@ -30,7 +30,31 @@ async function dirSize(dir: string): Promise<number> {
   return total;
 }
 
-export async function runStorageCleanup() {
+export async function runStorageCleanup(options?: {
+  trimHistory?: boolean;
+}) {
+  let historyTrimmed = 0;
+
+  if (options?.trimHistory) {
+    const allSlides = await prisma.slide.findMany({
+      select: { id: true, imageUrl: true, imageHistory: true },
+    });
+    for (const slide of allSlides) {
+      const history = parseImageHistory(slide.imageHistory);
+      if (history.length <= 1) continue;
+      const kept = history
+        .filter((h) => h.imageUrl !== slide.imageUrl)
+        .slice(0, 1);
+      await prisma.slide.update({
+        where: { id: slide.id },
+        data: {
+          imageHistory: serializeImageHistory(kept),
+        },
+      });
+      historyTrimmed++;
+    }
+  }
+
   const usedSlides = new Set<string>();
   const usedRefs = new Set<string>();
 
@@ -86,5 +110,6 @@ export async function runStorageCleanup() {
     freedMb: Math.round((freed / 1024 / 1024) * 100) / 100,
     remainingSlideMb: Math.round(slideMb * 10) / 10,
     remainingRefMb: Math.round(refMb * 10) / 10,
+    historyTrimmed,
   };
 }

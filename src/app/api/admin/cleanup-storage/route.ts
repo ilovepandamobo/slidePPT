@@ -17,7 +17,9 @@ export async function POST(req: Request) {
   }
 
   try {
-    const result = await runStorageCleanup();
+    const url = new URL(req.url);
+    const trimHistory = url.searchParams.get("trimHistory") === "1";
+    const result = await runStorageCleanup({ trimHistory });
     return NextResponse.json(result);
   } catch (e) {
     const msg = e instanceof Error ? e.message : "清理失败";
