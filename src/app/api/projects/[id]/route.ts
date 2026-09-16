@@ -77,5 +77,13 @@ export async function DELETE(
   }
 
   await prisma.project.delete({ where: { id } });
+
+  try {
+    const { runStorageCleanup } = await import("@/lib/storage/cleanup");
+    await runStorageCleanup({ trimHistory: true });
+  } catch (e) {
+    console.warn("[project delete] storage cleanup failed", e);
+  }
+
   return NextResponse.json({ ok: true });
 }
