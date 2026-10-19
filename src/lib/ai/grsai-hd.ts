@@ -1,17 +1,13 @@
 /**
- * 高清 4K：乘丰 images/generations → GrsAI images/generations 4K → Draw 4K（不回退 1K）
+ * 高清 4K：乘丰 images/generations → GrsAI images/generations（Draw 不支持 vip 4K 像素）
  */
 
-import { generateWithGrsai } from "@/lib/ai/grsai";
 import {
   generateWithGrsaiImages,
   generateWithGrsaiPlatformImages,
   FENG_4K_DEFAULT_QUALITY,
 } from "@/lib/ai/grsai-images";
-import {
-  resolveGrsaiDrawConfig,
-  resolveGrsaiImagesConfig,
-} from "@/lib/ai/grsai-config";
+import { resolveGrsaiImagesConfig } from "@/lib/ai/grsai-config";
 
 export type OutlineHdResult = {
   url: string | null;
@@ -76,40 +72,17 @@ export async function generateOutlineHdSlide(params: {
       if (grsai4k) {
         return { url: grsai4k, provider: "grsai-images-4k", usedDrawFallback: false };
       }
-      console.warn(
-        "[outline-hd] GrsAI images/generations 4K empty, fallback to draw"
-      );
+      console.warn("[outline-hd] GrsAI images/generations 4K empty");
     } catch (e) {
       console.warn(
-        "[outline-hd] GrsAI images/generations 4K failed, fallback to draw:",
+        "[outline-hd] GrsAI images/generations 4K failed:",
         e instanceof Error ? e.message : e
       );
     }
   }
 
-  const draw4k = resolveGrsaiDrawConfig(params.aspectRatio, "hd");
-  try {
-    const drawUrl = await generateWithGrsai({
-      prompt: params.prompt,
-      model: draw4k.model,
-      aspectRatio: draw4k.aspectRatio,
-      quality: "high",
-      referenceUrls: refs,
-    });
-    if (drawUrl) {
-      return {
-        url: drawUrl,
-        provider: "grsai-draw-4k-fallback",
-        usedDrawFallback: true,
-      };
-    }
-  } catch (e) {
-    console.warn(
-      "[outline-hd] draw 4K failed:",
-      e instanceof Error ? e.message : e
-    );
-  }
-
-  console.warn("[outline-hd] all 4K channels failed, not falling back to 1K");
+  console.warn(
+    "[outline-hd] all images/generations 4K channels failed (Draw 不支持 vip 4K，已跳过)"
+  );
   return { url: null, provider: "none", usedDrawFallback: false };
 }
