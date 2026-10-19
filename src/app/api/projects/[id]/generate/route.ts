@@ -113,7 +113,10 @@ export async function POST(
 
   const total = proj.slides.length;
   let completed = 0;
-  const concurrency = getGenerationConcurrency(slidesToGenerate.length);
+  const concurrency = getGenerationConcurrency(
+    slidesToGenerate.length,
+    proj.imageQuality
+  );
   const failures: { order: number; title: string; error: string }[] = [];
   const isLayoutRemix = proj.generationMode === "remix";
 

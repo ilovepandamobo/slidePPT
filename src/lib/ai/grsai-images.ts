@@ -1,6 +1,7 @@
 /**
- * 乘丰 Feng AI — POST /v1/images/generations（大纲 4K 优先通道）
- * 文档：https://api.cphone.vip/docs
+ * OpenAI 格式 POST /v1/images/generations
+ * - 乘丰 Feng：GRSAI_IMAGES_*（大纲 4K 优先）
+ * - GrsAI 节点：GRSAI_BASE_URL + GRSAI_API_KEY（4K 回退）
  */
 
 import { fetchFengImages, formatFetchError } from "@/lib/ai/feng-long-fetch";
@@ -8,6 +9,7 @@ import { persistRemoteImage } from "@/lib/ai/grsai";
 
 /** 乘丰 4K 默认节点 */
 const DEFAULT_IMAGES_BASE_URL = "https://api.cphone.vip";
+const DEFAULT_GRSAI_BASE_URL = "https://grsai.dakka.com.cn";
 /** 与 buildSlideGenerationPrompt 上限一致；过短会截掉大纲正文，只剩「参考风格图」指令 */
 export const FENG_IMAGES_PROMPT_MAX = 4000;
 /** 4K 通道固定使用最高画质 */
@@ -29,11 +31,19 @@ type ImagesGenResponse = {
   msg?: string;
 };
 
-function getConfig() {
+function getFengConfig() {
   const apiKey =
     process.env.GRSAI_IMAGES_API_KEY || process.env.GRSAI_API_KEY || "";
   const baseUrl = (
     process.env.GRSAI_IMAGES_BASE_URL || DEFAULT_IMAGES_BASE_URL
+  ).replace(/\/$/, "");
+  return { apiKey, baseUrl };
+}
+
+function getGrsaiPlatformConfig() {
+  const apiKey = process.env.GRSAI_API_KEY || "";
+  const baseUrl = (
+    process.env.GRSAI_BASE_URL || DEFAULT_GRSAI_BASE_URL
   ).replace(/\/$/, "");
   return { apiKey, baseUrl };
 }
@@ -65,10 +75,11 @@ function extractImagesUrl(json: ImagesGenResponse): string | null {
   return null;
 }
 
-export async function generateWithGrsaiImages(
+async function postImagesGenerations(
+  config: { apiKey: string; baseUrl: string; logTag: string },
   params: GrsaiImagesParams
 ): Promise<string | null> {
-  const { apiKey, baseUrl } = getConfig();
+  const { apiKey, baseUrl, logTag } = config;
   if (!apiKey || !params.referenceUrls.length) return null;
 
   const timeoutMs = Number(process.env.GRSAI_IMAGES_TIMEOUT_MS) || 540_000;
@@ -83,7 +94,7 @@ export async function generateWithGrsaiImages(
   };
 
   console.info(
-    `[FengAI 4K] POST ${baseUrl}/v1/images/generations model=${body.model} size=${body.size} quality=${body.quality}`
+    `[${logTag}] POST ${baseUrl}/v1/images/generations model=${body.model} size=${body.size} quality=${body.quality}`
   );
 
   let res: Response;
@@ -102,7 +113,7 @@ export async function generateWithGrsaiImages(
       timeoutMs
     );
   } catch (e) {
-    console.error("[FengAI 4K] request failed:", formatFetchError(e));
+    console.error(`[${logTag}] request failed:`, formatFetchError(e));
     return null;
   }
 
@@ -111,13 +122,13 @@ export async function generateWithGrsaiImages(
   try {
     json = JSON.parse(text) as ImagesGenResponse;
   } catch {
-    console.error("[FengAI 4K] invalid JSON", res.status, text.slice(0, 200));
+    console.error(`[${logTag}] invalid JSON`, res.status, text.slice(0, 200));
     return null;
   }
 
   if (!res.ok) {
     console.error(
-      "[FengAI 4K] HTTP",
+      `[${logTag}] HTTP`,
       res.status,
       json.error?.message || json.msg || text.slice(0, 200)
     );
@@ -125,15 +136,35 @@ export async function generateWithGrsaiImages(
   }
 
   if (json.code !== undefined && json.code !== 0) {
-    console.error("[FengAI 4K] API error", json.code, json.msg);
+    console.error(`[${logTag}] API error`, json.code, json.msg);
     return null;
   }
 
   const remoteUrl = extractImagesUrl(json);
   if (!remoteUrl) {
-    console.error("[FengAI 4K] no url in response", json);
+    console.error(`[${logTag}] no url in response`, json);
     return null;
   }
 
   return persistRemoteImage(remoteUrl);
+}
+
+/** 乘丰 Feng AI 4K */
+export async function generateWithGrsaiImages(
+  params: GrsaiImagesParams
+): Promise<string | null> {
+  return postImagesGenerations(
+    { ...getFengConfig(), logTag: "FengAI 4K" },
+    params
+  );
+}
+
+/** GrsAI 国内/全球节点 OpenAI 格式 4K（乘丰失败时优先回退） */
+export async function generateWithGrsaiPlatformImages(
+  params: GrsaiImagesParams
+): Promise<string | null> {
+  return postImagesGenerations(
+    { ...getGrsaiPlatformConfig(), logTag: "GrsAI 4K" },
+    params
+  );
 }

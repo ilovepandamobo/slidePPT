@@ -1,8 +1,11 @@
 /**
- * 并发生成数。默认=全部页面一起请求（上限 20）。
- * .env: GENERATION_CONCURRENCY=5 可改回限制并发。
+ * 并发生成数。标准默认可多页并行；高清 4K 默认 3 路，避免打满乘丰/GrsAI。
+ * .env: GENERATION_CONCURRENCY=5 覆盖上述默认。
  */
-export function getGenerationConcurrency(slideCount: number): number {
+export function getGenerationConcurrency(
+  slideCount: number,
+  imageQuality?: string | null
+): number {
   const raw = process.env.GENERATION_CONCURRENCY;
   if (raw !== undefined && raw !== "") {
     const n = Number(raw);
@@ -10,7 +13,8 @@ export function getGenerationConcurrency(slideCount: number): number {
       return Math.min(Math.floor(n), 20);
     }
   }
-  return Math.min(Math.max(slideCount, 1), 20);
+  const cap = imageQuality === "hd" ? 3 : 20;
+  return Math.min(Math.max(slideCount, 1), cap);
 }
 
 export async function mapWithConcurrency<T, R>(

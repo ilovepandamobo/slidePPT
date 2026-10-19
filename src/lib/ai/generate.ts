@@ -226,9 +226,9 @@ export async function generateSlideImage(
       });
       grsaiUrl = hd.url;
       provider = hd.provider;
-      if (hd.url && hd.provider === "grsai-api-4k") {
+      if (hd.url && hd.provider === "grsai-images-4k") {
         console.warn(
-          "[generateSlideImage] Feng 4K unavailable, used GrsAI api/generate 4K"
+          "[generateSlideImage] Feng 4K unavailable, used GrsAI images/generations 4K"
         );
       } else if (hd.usedDrawFallback && hd.url) {
         console.warn(

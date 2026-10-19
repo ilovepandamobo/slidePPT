@@ -1,11 +1,15 @@
 /**
- * 高清 4K：乘丰 /v1/images/generations → GrsAI /v1/api/generate 4K → Draw 1K
+ * 高清 4K：乘丰 images/generations → GrsAI images/generations 4K → Draw 4K → Draw 1K
  */
 
-import { generateWithGrsaiApiGenerate } from "@/lib/ai/grsai-api-generate";
 import { generateWithGrsai } from "@/lib/ai/grsai";
-import { generateWithGrsaiImages, FENG_4K_DEFAULT_QUALITY } from "@/lib/ai/grsai-images";
 import {
+  generateWithGrsaiImages,
+  generateWithGrsaiPlatformImages,
+  FENG_4K_DEFAULT_QUALITY,
+} from "@/lib/ai/grsai-images";
+import {
+  resolveGrsaiDrawConfig,
   resolveGrsaiDrawFallbackConfig,
   resolveGrsaiImagesConfig,
 } from "@/lib/ai/grsai-config";
@@ -48,7 +52,7 @@ export async function generateOutlineHdSlide(params: {
         return { url, provider: "feng-ai-4k", usedDrawFallback: false };
       }
       console.warn(
-        "[outline-hd] Feng images/generations empty, fallback to GrsAI 4K api/generate"
+        "[outline-hd] Feng images/generations empty, fallback to GrsAI images/generations 4K"
       );
     } catch (e) {
       console.warn(
@@ -58,25 +62,52 @@ export async function generateOutlineHdSlide(params: {
     }
   } else {
     console.warn(
-      "[outline-hd] no reference for Feng 4K, trying GrsAI 4K api/generate"
+      "[outline-hd] no reference for Feng 4K, trying GrsAI images/generations 4K"
     );
   }
 
+  if (refs?.length) {
+    try {
+      const grsai4k = await generateWithGrsaiPlatformImages({
+        prompt: params.prompt,
+        size: imagesCfg.size,
+        model: imagesCfg.model,
+        quality: FENG_4K_DEFAULT_QUALITY,
+        referenceUrls: refs,
+      });
+      if (grsai4k) {
+        return { url: grsai4k, provider: "grsai-images-4k", usedDrawFallback: false };
+      }
+      console.warn(
+        "[outline-hd] GrsAI images/generations 4K empty, fallback to draw"
+      );
+    } catch (e) {
+      console.warn(
+        "[outline-hd] GrsAI images/generations 4K failed, fallback to draw:",
+        e instanceof Error ? e.message : e
+      );
+    }
+  }
+
+  const draw4k = resolveGrsaiDrawConfig(params.aspectRatio, "hd");
   try {
-    const grsai4k = await generateWithGrsaiApiGenerate({
+    const drawUrl = await generateWithGrsai({
       prompt: params.prompt,
-      model: imagesCfg.model,
-      aspectRatio: imagesCfg.size,
-      quality: "medium",
+      model: draw4k.model,
+      aspectRatio: draw4k.aspectRatio,
+      quality: "high",
       referenceUrls: refs,
     });
-    if (grsai4k) {
-      return { url: grsai4k, provider: "grsai-api-4k", usedDrawFallback: false };
+    if (drawUrl) {
+      return {
+        url: drawUrl,
+        provider: "grsai-draw-4k-fallback",
+        usedDrawFallback: true,
+      };
     }
-    console.warn("[outline-hd] GrsAI api/generate 4K empty, fallback to draw 1K");
   } catch (e) {
     console.warn(
-      "[outline-hd] GrsAI api/generate 4K failed, fallback to draw 1K:",
+      "[outline-hd] draw 4K failed, fallback to draw 1K:",
       e instanceof Error ? e.message : e
     );
   }
