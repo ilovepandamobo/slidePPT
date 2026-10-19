@@ -211,7 +211,7 @@ export async function generateWithGrsaiImages(
   const baseUrl = getFengBaseUrl();
   const perKeyRetries = Math.max(
     1,
-    Number(process.env.FENG_IMAGES_RETRIES) || 1
+    Number(process.env.FENG_IMAGES_RETRIES) || 2
   );
   const startSlot =
     options?.keySlotIndex !== undefined
