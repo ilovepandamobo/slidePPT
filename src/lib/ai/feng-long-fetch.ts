@@ -7,9 +7,16 @@ import type { Dispatcher } from "undici";
 
 const agents = new Map<number, Dispatcher>();
 
+type FengFetchInit = {
+  method: string;
+  headers?: Record<string, string>;
+  body?: string;
+  signal?: AbortSignal;
+};
+
 export async function fetchFengImages(
   url: string,
-  init: RequestInit,
+  init: FengFetchInit,
   timeoutMs: number
 ): Promise<Response> {
   const { fetch: undiciFetch, Agent } = await import("undici");
@@ -26,9 +33,9 @@ export async function fetchFengImages(
 
   const res = await undiciFetch(url, {
     method: init.method,
-    headers: init.headers as Record<string, string> | undefined,
-    body: init.body ?? undefined,
-    signal: init.signal ?? undefined,
+    headers: init.headers,
+    body: init.body,
+    signal: init.signal,
     dispatcher,
   });
 
