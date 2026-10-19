@@ -1,5 +1,8 @@
 /**
- * 高清 4K：乘丰 images/generations → GrsAI images/generations（Draw 不支持 vip 4K 像素）
+ * 高清 4K 链路（典型：乘丰 key×2 + GrsAI key×1）：
+ * 1. 乘丰 GRSAI_IMAGES_API_KEY / _2 分流 POST …/images/generations
+ * 2. 失败 → GrsAI GRSAI_API_KEY 同格式 4K（GRSAI_BASE_URL）
+ * 不降 1K；Draw vip 4K 像素不可用故跳过
  */
 
 import {
