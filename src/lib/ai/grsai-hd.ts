@@ -1,5 +1,5 @@
 /**
- * 高清 4K：乘丰 images/generations → GrsAI images/generations 4K → Draw 4K → Draw 1K
+ * 高清 4K：乘丰 images/generations → GrsAI images/generations 4K → Draw 4K（不回退 1K）
  */
 
 import { generateWithGrsai } from "@/lib/ai/grsai";
@@ -10,7 +10,6 @@ import {
 } from "@/lib/ai/grsai-images";
 import {
   resolveGrsaiDrawConfig,
-  resolveGrsaiDrawFallbackConfig,
   resolveGrsaiImagesConfig,
 } from "@/lib/ai/grsai-config";
 
@@ -36,7 +35,6 @@ export async function generateOutlineHdSlide(params: {
   aspectRatio?: string;
 }): Promise<OutlineHdResult> {
   const imagesCfg = resolveGrsaiImagesConfig(params.aspectRatio);
-  const drawFallback = resolveGrsaiDrawFallbackConfig(params.aspectRatio);
   const refs = params.referenceUrls?.length ? params.referenceUrls : undefined;
 
   if (refs?.length) {
@@ -107,21 +105,11 @@ export async function generateOutlineHdSlide(params: {
     }
   } catch (e) {
     console.warn(
-      "[outline-hd] draw 4K failed, fallback to draw 1K:",
+      "[outline-hd] draw 4K failed:",
       e instanceof Error ? e.message : e
     );
   }
 
-  const url = await generateWithGrsai({
-    prompt: params.prompt,
-    model: drawFallback.model,
-    aspectRatio: drawFallback.aspectRatio,
-    quality: "high",
-    referenceUrls: refs,
-  });
-  return {
-    url,
-    provider: url ? "grsai-draw-1k-fallback" : "none",
-    usedDrawFallback: true,
-  };
+  console.warn("[outline-hd] all 4K channels failed, not falling back to 1K");
+  return { url: null, provider: "none", usedDrawFallback: false };
 }

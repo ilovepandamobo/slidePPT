@@ -232,7 +232,7 @@ export async function generateSlideImage(
         );
       } else if (hd.usedDrawFallback && hd.url) {
         console.warn(
-          "[generateSlideImage] 4K channels unavailable, used Draw 1K fallback"
+          "[generateSlideImage] used GrsAI draw/completions 4K fallback"
         );
       }
     } else {
@@ -275,7 +275,7 @@ export async function generateSlideImage(
   if (quality === "hd") {
     throw new Error(
       useOutlineHd
-        ? "高清 4K 未能获取图片（DALL·E 与 Draw 回退均失败）。请上传风格参考图后重试，或暂时改用标准画质。"
+        ? "高清 4K 生成失败（乘丰 / GrsAI 4K 均未成功，未降级为 1K）。请在编辑器选中该页后点「生成本页」重试。"
         : "高清 4K 未能获取图片（提交失败或接口无响应）。请检查 GrsAI 配置后重试，或暂时改用标准画质。"
     );
   }
