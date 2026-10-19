@@ -1,5 +1,5 @@
 /**
- * 并发生成数。标准默认可多页并行；高清 4K 默认 3 路，避免打满乘丰/GrsAI。
+ * 并发生成数。标准默认可多页并行；高清 4K 默认 1 路（4K 易触发上游 500/400）。
  * .env: GENERATION_CONCURRENCY=5 覆盖上述默认。
  */
 export function getGenerationConcurrency(
@@ -13,7 +13,7 @@ export function getGenerationConcurrency(
       return Math.min(Math.floor(n), 20);
     }
   }
-  const cap = imageQuality === "hd" ? 3 : 20;
+  const cap = imageQuality === "hd" ? 1 : 20;
   return Math.min(Math.max(slideCount, 1), cap);
 }
 

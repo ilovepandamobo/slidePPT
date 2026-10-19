@@ -10,6 +10,11 @@ import { persistRemoteImage } from "@/lib/ai/grsai";
 /** 乘丰 4K 默认节点 */
 const DEFAULT_IMAGES_BASE_URL = "https://api.cphone.vip";
 const DEFAULT_GRSAI_BASE_URL = "https://grsai.dakka.com.cn";
+const DEFAULT_GRSAI_GLOBAL_BASE_URL = "https://grsaiapi.com";
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 /** 与 buildSlideGenerationPrompt 上限一致；过短会截掉大纲正文，只剩「参考风格图」指令 */
 export const FENG_IMAGES_PROMPT_MAX = 4000;
 /** 4K 通道固定使用最高画质 */
@@ -46,6 +51,24 @@ function getGrsaiPlatformConfig() {
     process.env.GRSAI_BASE_URL || DEFAULT_GRSAI_BASE_URL
   ).replace(/\/$/, "");
   return { apiKey, baseUrl };
+}
+
+/** GrsAI 4K 回退：国内节点失败后试全球节点 */
+function getGrsaiPlatformBaseUrls(): string[] {
+  const primary = (
+    process.env.GRSAI_BASE_URL || DEFAULT_GRSAI_BASE_URL
+  ).replace(/\/$/, "");
+  const extra = process.env.GRSAI_IMAGES_FALLBACK_BASE_URL?.trim().replace(
+    /\/$/,
+    ""
+  );
+  const globalDefault = DEFAULT_GRSAI_GLOBAL_BASE_URL.replace(/\/$/, "");
+  const urls = [primary];
+  if (extra && extra !== primary) urls.push(extra);
+  if (globalDefault !== primary && globalDefault !== extra) {
+    urls.push(globalDefault);
+  }
+  return [...new Set(urls)];
 }
 
 /** 转为外部 API 可访问的 image URL（与 Draw urls 逻辑一致） */
@@ -149,22 +172,43 @@ async function postImagesGenerations(
   return persistRemoteImage(remoteUrl);
 }
 
-/** 乘丰 Feng AI 4K */
+/** 乘丰 Feng AI 4K（500/断连时短暂重试） */
 export async function generateWithGrsaiImages(
   params: GrsaiImagesParams
 ): Promise<string | null> {
-  return postImagesGenerations(
-    { ...getFengConfig(), logTag: "FengAI 4K" },
-    params
+  const config = { ...getFengConfig(), logTag: "FengAI 4K" };
+  const maxAttempts = Math.max(
+    1,
+    Number(process.env.FENG_IMAGES_RETRIES) || 2
   );
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const url = await postImagesGenerations(config, params);
+    if (url) return url;
+    if (attempt < maxAttempts) {
+      const waitMs = 6000 * attempt;
+      console.warn(
+        `[FengAI 4K] retry ${attempt + 1}/${maxAttempts} in ${waitMs}ms`
+      );
+      await sleep(waitMs);
+    }
+  }
+  return null;
 }
 
-/** GrsAI 国内/全球节点 OpenAI 格式 4K（乘丰失败时优先回退） */
+/** GrsAI OpenAI 格式 4K：国内 → 可选备用 → 全球节点 */
 export async function generateWithGrsaiPlatformImages(
   params: GrsaiImagesParams
 ): Promise<string | null> {
-  return postImagesGenerations(
-    { ...getGrsaiPlatformConfig(), logTag: "GrsAI 4K" },
-    params
-  );
+  const { apiKey } = getGrsaiPlatformConfig();
+  if (!apiKey) return null;
+
+  for (const baseUrl of getGrsaiPlatformBaseUrls()) {
+    const url = await postImagesGenerations(
+      { apiKey, baseUrl, logTag: "GrsAI 4K" },
+      params
+    );
+    if (url) return url;
+    console.warn(`[GrsAI 4K] node failed, trying next base: ${baseUrl}`);
+  }
+  return null;
 }

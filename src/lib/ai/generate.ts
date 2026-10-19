@@ -271,7 +271,7 @@ export async function generateSlideImage(
   if (quality === "hd") {
     throw new Error(
       useOutlineHd
-        ? "高清 4K 生成失败（乘丰 / GrsAI 4K 均未成功，未降级为 1K）。请在编辑器选中该页后点「生成本页」重试。"
+        ? "高清 4K 生成失败（乘丰或 GrsAI 上游繁忙/限流，未降级为 1K）。请隔 1–2 分钟在编辑器点「生成本页」单页重试；勿一次并发生成太多页。"
         : "高清 4K 未能获取图片（提交失败或接口无响应）。请检查 GrsAI 配置后重试，或暂时改用标准画质。"
     );
   }
