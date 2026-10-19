@@ -3,6 +3,8 @@
  * 文档：POST /v1/draw/completions，webHook=-1 立即返回 id，再轮询 /v1/draw/result
  */
 
+import { getGrsaiApiKeys } from "@/lib/ai/grsai-keys";
+
 const DEFAULT_BASE_URL = "https://grsai.dakka.com.cn";
 
 type DrawSubmitResponse = {
@@ -63,22 +65,27 @@ function isDrawSucceeded(data: DrawResultPayload): boolean {
   return Boolean(url && data.progress >= 100);
 }
 
-function getConfig() {
-  const apiKey = process.env.GRSAI_API_KEY;
+function getDrawRuntimeConfig() {
   const baseUrl = (process.env.GRSAI_BASE_URL || DEFAULT_BASE_URL).replace(
     /\/$/,
     ""
   );
   const model = process.env.GRSAI_MODEL || "gpt-image-2";
-  return { apiKey, baseUrl, model };
+  return { baseUrl, model };
 }
+
+let grsaiKeyRotate = 0;
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function submitDrawTask(params: GrsaiDrawParams): Promise<string | null> {
-  const { apiKey, baseUrl, model: defaultModel } = getConfig();
+async function submitDrawTask(
+  params: GrsaiDrawParams,
+  apiKey: string,
+  baseUrl: string,
+  defaultModel: string
+): Promise<string | null> {
   if (!apiKey) return null;
 
   const body: Record<string, unknown> = {
@@ -199,9 +206,10 @@ async function pollDrawRound(
 
 async function pollDrawResult(
   taskId: string,
+  apiKey: string,
+  baseUrl: string,
   model?: string
 ): Promise<string> {
-  const { apiKey, baseUrl } = getConfig();
   if (!apiKey) {
     throw new Error("GrsAI: missing API key");
   }
@@ -243,30 +251,51 @@ export async function persistRemoteImage(remoteUrl: string): Promise<string> {
 }
 
 export async function generateWithGrsai(
-  params: GrsaiDrawParams
+  params: GrsaiDrawParams,
+  options?: { keySlotIndex?: number }
 ): Promise<string | null> {
-  if (!process.env.GRSAI_API_KEY) return null;
+  const keys = getGrsaiApiKeys();
+  if (!keys.length) return null;
 
-  const maxTries = Math.max(
+  const { baseUrl, model: defaultModel } = getDrawRuntimeConfig();
+  const perKeyRetries = Math.max(
     1,
     Number(process.env.GRSAI_GENERATE_RETRIES) || 1
   );
+  const startSlot =
+    options?.keySlotIndex !== undefined
+      ? options.keySlotIndex % keys.length
+      : grsaiKeyRotate++ % keys.length;
+  const maxAttempts = keys.length * perKeyRetries;
 
-  for (let attempt = 1; attempt <= maxTries; attempt++) {
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const keyIndex = (startSlot + attempt) % keys.length;
+    const apiKey = keys[keyIndex];
+    const logTag = `GrsAI Draw key ${keyIndex + 1}/${keys.length}`;
+
     try {
-      const taskId = await submitDrawTask(params);
+      const taskId = await submitDrawTask(
+        params,
+        apiKey,
+        baseUrl,
+        defaultModel
+      );
       if (!taskId) {
-        if (attempt < maxTries) {
-          console.warn(
-            `[GrsAI] submit failed, retry ${attempt + 1}/${maxTries}`
-          );
-          await sleep(3000);
-          continue;
+        const isLast = attempt === maxAttempts - 1;
+        if (!isLast) {
+          const waitMs = 3000 * ((attempt % perKeyRetries) + 1);
+          console.warn(`[${logTag}] submit failed, switch/wait ${waitMs}ms`);
+          await sleep(waitMs);
         }
-        return null;
+        continue;
       }
 
-      const remoteUrl = await pollDrawResult(taskId, params.model);
+      const remoteUrl = await pollDrawResult(
+        taskId,
+        apiKey,
+        baseUrl,
+        params.model
+      );
       return persistRemoteImage(remoteUrl);
     } catch (e) {
       if (e instanceof GrsaiPollTimeoutError) {
@@ -276,17 +305,23 @@ export async function generateWithGrsai(
       const isTaskFailed =
         e instanceof Error && e.message.startsWith("GrsAI:");
 
-      if (isTaskFailed && attempt < maxTries) {
+      const isLast = attempt === maxAttempts - 1;
+      if (isTaskFailed && !isLast) {
+        const waitMs = 5000 * ((attempt % perKeyRetries) + 1);
         console.warn(
-          `[GrsAI] task failed, retry ${attempt + 1}/${maxTries}:`,
+          `[${logTag}] task failed, switch/wait ${waitMs}ms:`,
           e instanceof Error ? e.message : e
         );
-        await sleep(5000);
+        await sleep(waitMs);
         continue;
       }
 
-      console.error("[GrsAI] generate error", e);
+      console.error(`[${logTag}] generate error`, e);
       if (isTaskFailed) throw e;
+      if (!isLast) {
+        await sleep(3000);
+        continue;
+      }
       return null;
     }
   }
@@ -295,5 +330,5 @@ export async function generateWithGrsai(
 }
 
 export function isGrsaiConfigured(): boolean {
-  return Boolean(process.env.GRSAI_API_KEY);
+  return getGrsaiApiKeys().length > 0;
 }

@@ -29,7 +29,7 @@ export async function generateOutlineHdSlide(params: {
   prompt: string;
   referenceUrls?: string[];
   aspectRatio?: string;
-  /** 批量生成时按页序号分配乘丰密钥槽位 */
+  /** 批量生成时按页序号分配 API 密钥槽（乘丰 + GrsAI 4K 回退） */
   fengKeySlotIndex?: number;
 }): Promise<OutlineHdResult> {
   const imagesCfg = resolveGrsaiImagesConfig(params.aspectRatio);
@@ -67,13 +67,16 @@ export async function generateOutlineHdSlide(params: {
 
   if (refs?.length) {
     try {
-      const grsai4k = await generateWithGrsaiPlatformImages({
-        prompt: params.prompt,
-        size: imagesCfg.size,
-        model: imagesCfg.model,
-        quality: FENG_4K_DEFAULT_QUALITY,
-        referenceUrls: refs,
-      });
+      const grsai4k = await generateWithGrsaiPlatformImages(
+        {
+          prompt: params.prompt,
+          size: imagesCfg.size,
+          model: imagesCfg.model,
+          quality: FENG_4K_DEFAULT_QUALITY,
+          referenceUrls: refs,
+        },
+        { keySlotIndex: params.fengKeySlotIndex }
+      );
       if (grsai4k) {
         return { url: grsai4k, provider: "grsai-images-4k", usedDrawFallback: false };
       }

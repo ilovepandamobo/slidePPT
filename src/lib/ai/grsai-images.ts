@@ -6,6 +6,7 @@
 
 import { fetchFengImages, formatFetchError } from "@/lib/ai/feng-long-fetch";
 import { persistRemoteImage } from "@/lib/ai/grsai";
+import { getGrsaiApiKeys } from "@/lib/ai/grsai-keys";
 
 /** 乘丰 4K 默认节点 */
 const DEFAULT_IMAGES_BASE_URL = "https://api.cphone.vip";
@@ -78,14 +79,6 @@ function pickFengApiKey(preferredIndex?: number): { apiKey: string; slot: number
       ? preferredIndex % keys.length
       : fengKeyRotate++ % keys.length;
   return { apiKey: keys[slot], slot: slot + 1 };
-}
-
-function getGrsaiPlatformConfig() {
-  const apiKey = process.env.GRSAI_API_KEY || "";
-  const baseUrl = (
-    process.env.GRSAI_BASE_URL || DEFAULT_GRSAI_BASE_URL
-  ).replace(/\/$/, "");
-  return { apiKey, baseUrl };
 }
 
 /** GrsAI 4K 回退：国内节点失败后试全球节点 */
@@ -247,19 +240,31 @@ export async function generateWithGrsaiImages(
   return null;
 }
 
-/** GrsAI OpenAI 格式 4K：国内 → 可选备用 → 全球节点 */
+/** GrsAI OpenAI 格式 4K：多密钥 + 国内 → 可选备用 → 全球节点 */
 export async function generateWithGrsaiPlatformImages(
-  params: GrsaiImagesParams
+  params: GrsaiImagesParams,
+  options?: { keySlotIndex?: number }
 ): Promise<string | null> {
-  const { apiKey } = getGrsaiPlatformConfig();
-  if (!apiKey) return null;
+  const keys = getGrsaiApiKeys();
+  if (!keys.length) return null;
+
+  const startSlot =
+    options?.keySlotIndex !== undefined
+      ? options.keySlotIndex % keys.length
+      : 0;
 
   for (const baseUrl of getGrsaiPlatformBaseUrls()) {
-    const url = await postImagesGenerations(
-      { apiKey, baseUrl, logTag: "GrsAI 4K" },
-      params
-    );
-    if (url) return url;
+    for (let ki = 0; ki < keys.length; ki++) {
+      const keyIndex = (startSlot + ki) % keys.length;
+      const apiKey = keys[keyIndex];
+      const logTag = `GrsAI 4K key ${keyIndex + 1}/${keys.length}`;
+
+      const url = await postImagesGenerations(
+        { apiKey, baseUrl, logTag },
+        params
+      );
+      if (url) return url;
+    }
     console.warn(`[GrsAI 4K] node failed, trying next base: ${baseUrl}`);
   }
   return null;

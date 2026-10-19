@@ -47,7 +47,7 @@ type GenerateOptions = {
   /** PPT 焕新：原稿截图路径 */
   layoutReferenceImageUrl?: string | null;
   isLayoutRemix?: boolean;
-  /** 高清批量：按页分配乘丰 API 密钥槽（0,1,…） */
+  /** 批量：按页分配乘丰 / GrsAI Draw 密钥槽（0,1,…） */
   fengKeySlotIndex?: number;
 };
 
@@ -235,13 +235,16 @@ export async function generateSlideImage(
         );
       }
     } else {
-      grsaiUrl = await generateWithGrsai({
-        prompt,
-        model: drawConfig.model,
-        aspectRatio: drawConfig.aspectRatio,
-        quality: "high",
-        referenceUrls: referenceUrls.length ? referenceUrls : undefined,
-      });
+      grsaiUrl = await generateWithGrsai(
+        {
+          prompt,
+          model: drawConfig.model,
+          aspectRatio: drawConfig.aspectRatio,
+          quality: "high",
+          referenceUrls: referenceUrls.length ? referenceUrls : undefined,
+        },
+        { keySlotIndex: options.fengKeySlotIndex }
+      );
       provider = quality === "hd" ? "grsai-vip-4k" : "grsai";
     }
   } catch (e) {
