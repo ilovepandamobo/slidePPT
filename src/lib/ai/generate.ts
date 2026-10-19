@@ -230,6 +230,7 @@ export async function generateSlideImage(
         console.warn(
           "[generateSlideImage] Feng 4K unavailable, used GrsAI images/generations 4K"
         );
+      }
     } else {
       grsaiUrl = await generateWithGrsai({
         prompt,
