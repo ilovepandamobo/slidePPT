@@ -47,6 +47,8 @@ type GenerateOptions = {
   /** PPT 焕新：原稿截图路径 */
   layoutReferenceImageUrl?: string | null;
   isLayoutRemix?: boolean;
+  /** 高清批量：按页分配乘丰 API 密钥槽（0,1,…） */
+  fengKeySlotIndex?: number;
 };
 
 async function collectAllReferenceUrls(
@@ -223,6 +225,7 @@ export async function generateSlideImage(
         prompt,
         referenceUrls: referenceUrls.length ? referenceUrls : undefined,
         aspectRatio: options.aspectRatio,
+        fengKeySlotIndex: options.fengKeySlotIndex,
       });
       grsaiUrl = hd.url;
       provider = hd.provider;

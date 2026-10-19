@@ -1,6 +1,23 @@
+/** 与 grsai-images 中乘丰多 key 逻辑一致（勿 import grsai-images，避免构建环依赖） */
+function countFengImagesApiKeys(): number {
+  const list = process.env.GRSAI_IMAGES_API_KEYS?.trim();
+  if (list) {
+    return new Set(
+      list.split(",").map((s) => s.trim()).filter(Boolean)
+    ).size;
+  }
+  let n = 0;
+  const k1 = process.env.GRSAI_IMAGES_API_KEY?.trim();
+  const k2 = process.env.GRSAI_IMAGES_API_KEY_2?.trim();
+  if (k1) n++;
+  if (k2 && k2 !== k1) n++;
+  if (n) return n;
+  return process.env.GRSAI_API_KEY?.trim() ? 1 : 0;
+}
+
 /**
- * 并发生成数。标准默认可多页并行；高清 4K 默认 1 路（4K 易触发上游 500/400）。
- * .env: GENERATION_CONCURRENCY=5 覆盖上述默认。
+ * 并发生成数。高清 4K 默认 = 乘丰密钥个数（最多 2 路并行，每 key 一路）。
+ * .env: GENERATION_CONCURRENCY 可覆盖。
  */
 export function getGenerationConcurrency(
   slideCount: number,
@@ -13,7 +30,11 @@ export function getGenerationConcurrency(
       return Math.min(Math.floor(n), 20);
     }
   }
-  const cap = imageQuality === "hd" ? 1 : 20;
+  let cap = 20;
+  if (imageQuality === "hd") {
+    const keys = Math.max(1, countFengImagesApiKeys());
+    cap = Math.min(keys, 2);
+  }
   return Math.min(Math.max(slideCount, 1), cap);
 }
 

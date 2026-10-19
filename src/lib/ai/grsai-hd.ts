@@ -29,19 +29,24 @@ export async function generateOutlineHdSlide(params: {
   prompt: string;
   referenceUrls?: string[];
   aspectRatio?: string;
+  /** 批量生成时按页序号分配乘丰密钥槽位 */
+  fengKeySlotIndex?: number;
 }): Promise<OutlineHdResult> {
   const imagesCfg = resolveGrsaiImagesConfig(params.aspectRatio);
   const refs = params.referenceUrls?.length ? params.referenceUrls : undefined;
 
   if (refs?.length) {
     try {
-      const url = await generateWithGrsaiImages({
-        prompt: params.prompt,
-        size: imagesCfg.size,
-        model: imagesCfg.model,
-        quality: FENG_4K_DEFAULT_QUALITY,
-        referenceUrls: refs,
-      });
+      const url = await generateWithGrsaiImages(
+        {
+          prompt: params.prompt,
+          size: imagesCfg.size,
+          model: imagesCfg.model,
+          quality: FENG_4K_DEFAULT_QUALITY,
+          referenceUrls: refs,
+        },
+        { keySlotIndex: params.fengKeySlotIndex }
+      );
       if (url) {
         return { url, provider: "feng-ai-4k", usedDrawFallback: false };
       }

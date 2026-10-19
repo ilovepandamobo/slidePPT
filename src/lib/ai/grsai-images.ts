@@ -36,13 +36,48 @@ type ImagesGenResponse = {
   msg?: string;
 };
 
-function getFengConfig() {
-  const apiKey =
-    process.env.GRSAI_IMAGES_API_KEY || process.env.GRSAI_API_KEY || "";
-  const baseUrl = (
+let fengKeyRotate = 0;
+
+/** 乘丰多账号：GRSAI_IMAGES_API_KEY + GRSAI_IMAGES_API_KEY_2，或 GRSAI_IMAGES_API_KEYS 逗号分隔 */
+export function getFengImagesApiKeys(): string[] {
+  const listEnv = process.env.GRSAI_IMAGES_API_KEYS?.trim();
+  if (listEnv) {
+    const fromList = listEnv
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (fromList.length) return [...new Set(fromList)];
+  }
+
+  const keys: string[] = [];
+  const k1 = process.env.GRSAI_IMAGES_API_KEY?.trim();
+  const k2 = process.env.GRSAI_IMAGES_API_KEY_2?.trim();
+  if (k1) keys.push(k1);
+  if (k2 && k2 !== k1) keys.push(k2);
+  if (keys.length) return keys;
+
+  const fallback = process.env.GRSAI_API_KEY?.trim();
+  return fallback ? [fallback] : [];
+}
+
+export function getFengImagesApiKeyCount(): number {
+  return getFengImagesApiKeys().length;
+}
+
+function getFengBaseUrl(): string {
+  return (
     process.env.GRSAI_IMAGES_BASE_URL || DEFAULT_IMAGES_BASE_URL
   ).replace(/\/$/, "");
-  return { apiKey, baseUrl };
+}
+
+function pickFengApiKey(preferredIndex?: number): { apiKey: string; slot: number } {
+  const keys = getFengImagesApiKeys();
+  if (!keys.length) return { apiKey: "", slot: 0 };
+  const slot =
+    preferredIndex !== undefined
+      ? preferredIndex % keys.length
+      : fengKeyRotate++ % keys.length;
+  return { apiKey: keys[slot], slot: slot + 1 };
 }
 
 function getGrsaiPlatformConfig() {
@@ -172,23 +207,40 @@ async function postImagesGenerations(
   return persistRemoteImage(remoteUrl);
 }
 
-/** 乘丰 Feng AI 4K（500/断连时短暂重试） */
+/** 乘丰 Feng AI 4K：多密钥轮询，失败换下一个 key 再试 */
 export async function generateWithGrsaiImages(
-  params: GrsaiImagesParams
+  params: GrsaiImagesParams,
+  options?: { keySlotIndex?: number }
 ): Promise<string | null> {
-  const config = { ...getFengConfig(), logTag: "FengAI 4K" };
-  const maxAttempts = Math.max(
+  const keys = getFengImagesApiKeys();
+  if (!keys.length) return null;
+
+  const baseUrl = getFengBaseUrl();
+  const perKeyRetries = Math.max(
     1,
-    Number(process.env.FENG_IMAGES_RETRIES) || 2
+    Number(process.env.FENG_IMAGES_RETRIES) || 1
   );
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    const url = await postImagesGenerations(config, params);
+  const startSlot =
+    options?.keySlotIndex !== undefined
+      ? options.keySlotIndex % keys.length
+      : fengKeyRotate++ % keys.length;
+  const maxAttempts = keys.length * perKeyRetries;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const keyIndex = (startSlot + attempt) % keys.length;
+    const apiKey = keys[keyIndex];
+    const logTag = `FengAI 4K key ${keyIndex + 1}/${keys.length}`;
+
+    const url = await postImagesGenerations(
+      { apiKey, baseUrl, logTag },
+      params
+    );
     if (url) return url;
-    if (attempt < maxAttempts) {
-      const waitMs = 6000 * attempt;
-      console.warn(
-        `[FengAI 4K] retry ${attempt + 1}/${maxAttempts} in ${waitMs}ms`
-      );
+
+    const isLast = attempt === maxAttempts - 1;
+    if (!isLast) {
+      const waitMs = 6000 * ((attempt % perKeyRetries) + 1);
+      console.warn(`[${logTag}] failed, switch/wait ${waitMs}ms`);
       await sleep(waitMs);
     }
   }

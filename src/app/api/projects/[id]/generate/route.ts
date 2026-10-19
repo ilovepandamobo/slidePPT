@@ -126,7 +126,7 @@ export async function POST(
     storedUploadRef = await ensureStoredImageUrl(referenceImageUrl);
   }
 
-  async function generateOne(slide: SlideRow) {
+  async function generateOne(slide: SlideRow, batchIndex: number) {
     await prisma.slide.update({
       where: { id: slide.id },
       data: { status: "generating" },
@@ -156,6 +156,7 @@ export async function POST(
           referenceOnlyImageUrl: useRefOnly ? storedUploadRef : null,
           isLayoutRemix,
           layoutReferenceImageUrl: slide.layoutReference,
+          fengKeySlotIndex: batchIndex,
         }
       );
 
