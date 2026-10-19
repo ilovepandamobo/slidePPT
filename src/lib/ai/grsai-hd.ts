@@ -1,7 +1,8 @@
 /**
- * 高清 4K（首次生成 / 编辑器修改 / 焕新）：优先乘丰 /v1/images/generations，失败回退 Draw 1K
+ * 高清 4K：乘丰 /v1/images/generations → GrsAI /v1/api/generate 4K → Draw 1K
  */
 
+import { generateWithGrsaiApiGenerate } from "@/lib/ai/grsai-api-generate";
 import { generateWithGrsai } from "@/lib/ai/grsai";
 import { generateWithGrsaiImages, FENG_4K_DEFAULT_QUALITY } from "@/lib/ai/grsai-images";
 import {
@@ -46,16 +47,37 @@ export async function generateOutlineHdSlide(params: {
       if (url) {
         return { url, provider: "feng-ai-4k", usedDrawFallback: false };
       }
-      console.warn("[outline-hd] images/generations returned empty, fallback to draw 1K");
+      console.warn(
+        "[outline-hd] Feng images/generations empty, fallback to GrsAI 4K api/generate"
+      );
     } catch (e) {
       console.warn(
-        "[outline-hd] images/generations failed, fallback to draw 1K:",
+        "[outline-hd] Feng images/generations failed, fallback to GrsAI 4K:",
         e instanceof Error ? e.message : e
       );
     }
   } else {
     console.warn(
-      "[outline-hd] no reference image for DALL-E 4K, using draw 1K fallback"
+      "[outline-hd] no reference for Feng 4K, trying GrsAI 4K api/generate"
+    );
+  }
+
+  try {
+    const grsai4k = await generateWithGrsaiApiGenerate({
+      prompt: params.prompt,
+      model: imagesCfg.model,
+      aspectRatio: imagesCfg.size,
+      quality: "medium",
+      referenceUrls: refs,
+    });
+    if (grsai4k) {
+      return { url: grsai4k, provider: "grsai-api-4k", usedDrawFallback: false };
+    }
+    console.warn("[outline-hd] GrsAI api/generate 4K empty, fallback to draw 1K");
+  } catch (e) {
+    console.warn(
+      "[outline-hd] GrsAI api/generate 4K failed, fallback to draw 1K:",
+      e instanceof Error ? e.message : e
     );
   }
 

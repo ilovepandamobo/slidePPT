@@ -3,6 +3,7 @@
  * 文档：https://api.cphone.vip/docs
  */
 
+import { fetchFengImages, formatFetchError } from "@/lib/ai/feng-long-fetch";
 import { persistRemoteImage } from "@/lib/ai/grsai";
 
 /** 乘丰 4K 默认节点 */
@@ -85,15 +86,25 @@ export async function generateWithGrsaiImages(
     `[FengAI 4K] POST ${baseUrl}/v1/images/generations model=${body.model} size=${body.size} quality=${body.quality}`
   );
 
-  const res = await fetch(`${baseUrl}/v1/images/generations`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify(body),
-    signal: AbortSignal.timeout(timeoutMs),
-  });
+  let res: Response;
+  try {
+    res = await fetchFengImages(
+      `${baseUrl}/v1/images/generations`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(timeoutMs),
+      },
+      timeoutMs
+    );
+  } catch (e) {
+    console.error("[FengAI 4K] request failed:", formatFetchError(e));
+    return null;
+  }
 
   const text = await res.text();
   let json: ImagesGenResponse;

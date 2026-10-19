@@ -226,9 +226,13 @@ export async function generateSlideImage(
       });
       grsaiUrl = hd.url;
       provider = hd.provider;
-      if (hd.usedDrawFallback && hd.url) {
+      if (hd.url && hd.provider === "grsai-api-4k") {
         console.warn(
-          "[generateSlideImage] 4K Feng AI unavailable, used Draw 1K fallback"
+          "[generateSlideImage] Feng 4K unavailable, used GrsAI api/generate 4K"
+        );
+      } else if (hd.usedDrawFallback && hd.url) {
+        console.warn(
+          "[generateSlideImage] 4K channels unavailable, used Draw 1K fallback"
         );
       }
     } else {
