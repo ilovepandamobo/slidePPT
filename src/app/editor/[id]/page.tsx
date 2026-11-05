@@ -934,7 +934,7 @@ export default function EditorPage() {
                   className="mt-2 border border-white/20 bg-black/40 text-white hover:bg-white/10"
                   onClick={(ev) => {
                     ev.stopPropagation();
-                    void cancelSlideGeneration(slide.id);
+                    if (slide) void cancelSlideGeneration(slide.id);
                   }}
                 >
                   停止等待（保留当前图）
