@@ -28,67 +28,101 @@ export function isOutlineHdGeneration(options: {
   return options.imageQuality === "hd";
 }
 
+async function runHdImagesChannels(
+  prompt: string,
+  refs: string[],
+  imagesCfg: ReturnType<typeof resolveGrsaiImagesConfig>,
+  fengKeySlotIndex: number | undefined,
+  label: string
+): Promise<OutlineHdResult | null> {
+  console.info(`[outline-hd] ${label} refs=${refs.length}`);
+
+  const imageParams = {
+    prompt,
+    size: imagesCfg.size,
+    model: imagesCfg.model,
+    quality: FENG_4K_DEFAULT_QUALITY,
+    referenceUrls: refs,
+  };
+
+  try {
+    const fengUrl = await generateWithGrsaiImages(imageParams, {
+      keySlotIndex: fengKeySlotIndex,
+    });
+    if (fengUrl) {
+      return { url: fengUrl, provider: "feng-ai-4k", usedDrawFallback: false };
+    }
+    console.warn(`[outline-hd] ${label} Feng empty → GrsAI 4K`);
+  } catch (e) {
+    console.warn(
+      `[outline-hd] ${label} Feng failed → GrsAI 4K:`,
+      e instanceof Error ? e.message : e
+    );
+  }
+
+  try {
+    const grsai4k = await generateWithGrsaiPlatformImages(imageParams, {
+      keySlotIndex: fengKeySlotIndex,
+    });
+    if (grsai4k) {
+      return {
+        url: grsai4k,
+        provider: "grsai-images-4k",
+        usedDrawFallback: false,
+      };
+    }
+    console.warn(`[outline-hd] ${label} GrsAI 4K empty`);
+  } catch (e) {
+    console.warn(
+      `[outline-hd] ${label} GrsAI 4K failed:`,
+      e instanceof Error ? e.message : e
+    );
+  }
+
+  return null;
+}
+
 export async function generateOutlineHdSlide(params: {
   prompt: string;
   referenceUrls?: string[];
   aspectRatio?: string;
-  /** 批量生成时按页序号分配 API 密钥槽（乘丰 + GrsAI 4K 回退） */
   fengKeySlotIndex?: number;
 }): Promise<OutlineHdResult> {
   const imagesCfg = resolveGrsaiImagesConfig(params.aspectRatio);
   const refs = params.referenceUrls?.length ? params.referenceUrls : undefined;
 
-  if (refs?.length) {
-    try {
-      const url = await generateWithGrsaiImages(
-        {
-          prompt: params.prompt,
-          size: imagesCfg.size,
-          model: imagesCfg.model,
-          quality: FENG_4K_DEFAULT_QUALITY,
-          referenceUrls: refs,
-        },
-        { keySlotIndex: params.fengKeySlotIndex }
-      );
-      if (url) {
-        return { url, provider: "feng-ai-4k", usedDrawFallback: false };
-      }
-      console.warn(
-        "[outline-hd] Feng images/generations empty, fallback to GrsAI images/generations 4K"
-      );
-    } catch (e) {
-      console.warn(
-        "[outline-hd] Feng images/generations failed, fallback to GrsAI 4K:",
-        e instanceof Error ? e.message : e
-      );
-    }
-  } else {
+  if (!refs?.length) {
     console.warn(
       "[outline-hd] no reference for Feng 4K, trying GrsAI images/generations 4K"
     );
+    return { url: null, provider: "none", usedDrawFallback: false };
   }
 
-  if (refs?.length) {
-    try {
-      const grsai4k = await generateWithGrsaiPlatformImages(
-        {
-          prompt: params.prompt,
-          size: imagesCfg.size,
-          model: imagesCfg.model,
-          quality: FENG_4K_DEFAULT_QUALITY,
-          referenceUrls: refs,
-        },
-        { keySlotIndex: params.fengKeySlotIndex }
-      );
-      if (grsai4k) {
-        return { url: grsai4k, provider: "grsai-images-4k", usedDrawFallback: false };
-      }
-      console.warn("[outline-hd] GrsAI images/generations 4K empty");
-    } catch (e) {
-      console.warn(
-        "[outline-hd] GrsAI images/generations 4K failed:",
-        e instanceof Error ? e.message : e
-      );
+  const dual = await runHdImagesChannels(
+    params.prompt,
+    refs,
+    imagesCfg,
+    params.fengKeySlotIndex,
+    "dual-image"
+  );
+  if (dual?.url) return dual;
+
+  if (refs.length > 1) {
+    console.warn(
+      "[outline-hd] dual-image 4K failed (often Feng 500), retry current slide only"
+    );
+    const single = await runHdImagesChannels(
+      params.prompt,
+      [refs[0]],
+      imagesCfg,
+      params.fengKeySlotIndex,
+      "single-image-fallback"
+    );
+    if (single?.url) {
+      return {
+        ...single,
+        provider: `${single.provider}-single-ref`,
+      };
     }
   }
 

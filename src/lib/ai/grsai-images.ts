@@ -135,17 +135,21 @@ async function postImagesGenerations(
 
   const timeoutMs = Number(process.env.GRSAI_IMAGES_TIMEOUT_MS) || 540_000;
 
+  const imageUrls = formatImagesApiUrls(params.referenceUrls);
   const body = {
     model: params.model || "gpt-image-2-vip",
     prompt: params.prompt.slice(0, FENG_IMAGES_PROMPT_MAX),
     size: params.size,
     quality: params.quality ?? FENG_4K_DEFAULT_QUALITY,
     response_format: "url",
-    image: formatImagesApiUrls(params.referenceUrls),
+    image: imageUrls,
   };
 
+  const payloadKb = Math.round(
+    Buffer.byteLength(JSON.stringify(body), "utf8") / 1024
+  );
   console.info(
-    `[${logTag}] POST ${baseUrl}/v1/images/generations model=${body.model} size=${body.size} quality=${body.quality}`
+    `[${logTag}] POST ${baseUrl}/v1/images/generations model=${body.model} size=${body.size} quality=${body.quality} refs=${imageUrls.length} payload≈${payloadKb}KB`
   );
 
   let res: Response;
