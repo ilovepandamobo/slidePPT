@@ -38,6 +38,15 @@ export function getGenerationConcurrency(
   return Math.min(Math.max(slideCount, 1), cap);
 }
 
+/** 前端「每页一个 /generate」时的并发上限（HD 与乘丰双 key 对齐） */
+export function getClientSlideGenerateConcurrency(
+  slideCount: number,
+  imageQuality?: string | null
+): number {
+  const cap = imageQuality === "hd" ? 2 : 12;
+  return Math.min(Math.max(slideCount, 1), cap);
+}
+
 export async function mapWithConcurrency<T, R>(
   items: T[],
   concurrency: number,

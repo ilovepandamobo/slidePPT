@@ -28,6 +28,7 @@ import {
   generateSlidesParallel,
   summarizeParallelFailures,
 } from "@/lib/client-generate-slides";
+import { parseGenerateResponse } from "@/lib/generate-response";
 import { WaitingPlayground } from "@/components/ui/waiting-playground";
 
 const STEPS = ["目标风格", "原稿截图", "确认焕新"];
@@ -94,14 +95,32 @@ function RemixWizard() {
         (s) => s.id
       );
       const drawLabel = resolveGenerationLabel(aspectRatio, imageQuality);
-      setGenProgress(
-        `${drawLabel} 正在并发生成 ${slideIds.length} 页（每页独立请求）…`
-      );
+      let failures: Awaited<
+        ReturnType<typeof generateSlidesParallel>
+      >["failures"] = [];
 
-      const { failures } = await generateSlidesParallel(projectId, slideIds, {
-        onProgress: (done, total) =>
-          setGenProgress(`${drawLabel} 已完成 ${done}/${total} 页…`),
-      });
+      if (imageQuality === "hd") {
+        setGenProgress(
+          `${drawLabel} 正在生成 ${slideIds.length} 页（服务端最多 2 路 4K 并行）…`
+        );
+        const genRes = await fetch(`/api/projects/${projectId}/generate`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ slideIds }),
+        });
+        const genData = await parseGenerateResponse(genRes);
+        if (!genRes.ok) throw new Error(genData.error || "生成失败");
+        failures = genData.failures ?? [];
+      } else {
+        setGenProgress(
+          `${drawLabel} 正在并发生成 ${slideIds.length} 页（每页独立请求）…`
+        );
+        ({ failures } = await generateSlidesParallel(projectId, slideIds, {
+          imageQuality,
+          onProgress: (done, total) =>
+            setGenProgress(`${drawLabel} 已完成 ${done}/${total} 页…`),
+        }));
+      }
       const summary = summarizeParallelFailures(failures, slideIds.length);
 
       if (projectId) {

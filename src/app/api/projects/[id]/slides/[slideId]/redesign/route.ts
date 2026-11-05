@@ -100,6 +100,7 @@ export async function POST(
         isRedesign: !fromUpload,
         isUploadReference: fromUpload,
         editInstructions,
+        fengKeySlotIndex: existing.order,
       }
     );
 
@@ -131,7 +132,7 @@ export async function POST(
   } catch (e) {
     await prisma.slide.update({
       where: { id: slideId },
-      data: { status: "done" },
+      data: { status: "failed" },
     });
     const message = e instanceof Error ? e.message : "重新设计失败";
     return NextResponse.json({ error: message }, { status: 502 });

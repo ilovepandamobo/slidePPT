@@ -87,7 +87,7 @@ async function collectAllReferenceUrls(
     const urls: string[] = [];
     const add = async (stored: string | null | undefined) => {
       if (!stored) return;
-      const refs = await loadStyleReferenceForGrsai(stored);
+      const refs = await loadStyleReferenceForGrsai(stored, { compact: true });
       for (const u of refs) {
         if (!urls.includes(u)) urls.push(u);
       }
@@ -211,6 +211,15 @@ export async function generateSlideImage(
     template,
     options
   );
+
+  if (
+    (options.isUploadReference || options.isRedesign) &&
+    referenceUrls.length === 0
+  ) {
+    throw new Error(
+      "无法读取当前页或参考图（可能文件已丢失）。请重新上传参考图后再试。"
+    );
+  }
 
   const quality = parseImageQuality(options.imageQuality);
   const drawConfig = resolveGrsaiDrawConfig(options.aspectRatio, quality);

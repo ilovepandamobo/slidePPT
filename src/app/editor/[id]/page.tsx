@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   ChevronLeft,
@@ -70,6 +70,7 @@ export default function EditorPage() {
   const [generatingSlideIds, setGeneratingSlideIds] = useState<Set<string>>(
     () => new Set()
   );
+  const slideGenAbortRef = useRef<AbortController | null>(null);
   const [uploadingSlideId, setUploadingSlideId] = useState<string | null>(
     null
   );
@@ -132,6 +133,40 @@ export default function EditorPage() {
       next.delete(slideId);
       return next;
     });
+  }
+
+  /** 解除 UI/数据库「生成中」；不保证上游 AI 已停，完成后刷新可能看到新图 */
+  async function cancelSlideGeneration(slideId?: string) {
+    if (slideId) {
+      slideGenAbortRef.current?.abort();
+      slideGenAbortRef.current = null;
+      unmarkSlideGenerating(slideId);
+    } else {
+      slideGenAbortRef.current?.abort();
+      slideGenAbortRef.current = null;
+      setGeneratingSlideIds(new Set());
+    }
+
+    try {
+      const res = await fetch(`/api/projects/${id}/cancel-generation`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(slideId ? { slideId } : {}),
+      });
+      const data = await res.json();
+      if (data.project) {
+        setProject(data.project);
+      } else {
+        await load();
+      }
+      setActionError(null);
+      setGenMessage(
+        "已停止等待。若服务端仍在生成，1–2 分钟后刷新页面可能看到新图；可再点「重新设计」重试。"
+      );
+    } catch {
+      await load();
+      setActionError("停止失败，请刷新页面");
+    }
   }
 
   async function saveImageQuality(quality: ImageQuality) {
@@ -266,9 +301,14 @@ export default function EditorPage() {
     );
 
     try {
+      slideGenAbortRef.current?.abort();
+      const ac = new AbortController();
+      slideGenAbortRef.current = ac;
+
       const res = await fetch(`/api/projects/${id}/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: ac.signal,
         body: JSON.stringify({
           slideIds: [targetSlideId],
           ...(referenceUrl ? { referenceImageUrl: referenceUrl } : {}),
@@ -295,10 +335,12 @@ export default function EditorPage() {
       if (data.partial && data.failures?.length) {
         setActionError(data.failures[0]?.error || "本页生成失败");
       }
-    } catch {
+    } catch (e) {
+      if (e instanceof DOMException && e.name === "AbortError") return;
       setActionError("网络错误，请检查连接后重试");
       await load();
     } finally {
+      slideGenAbortRef.current = null;
       unmarkSlideGenerating(targetSlideId);
     }
   }
@@ -343,11 +385,17 @@ export default function EditorPage() {
     );
 
     try {
+      slideGenAbortRef.current?.abort();
+      const ac = new AbortController();
+      slideGenAbortRef.current = ac;
+      const timeout = setTimeout(() => ac.abort(), 610_000);
+
       const res = await fetch(
         `/api/projects/${id}/slides/${targetSlideId}/redesign`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          signal: ac.signal,
           body: JSON.stringify({
             title,
             editInstructions: instructions,
@@ -357,6 +405,7 @@ export default function EditorPage() {
           }),
         }
       );
+      clearTimeout(timeout);
       const data = await res.json();
       if (!res.ok) {
         setActionError(data.error || "重新设计失败，请稍后重试");
@@ -383,10 +432,12 @@ export default function EditorPage() {
       if (useReference) {
         setPendingReferenceUrl(null);
       }
-    } catch {
+    } catch (e) {
+      if (e instanceof DOMException && e.name === "AbortError") return;
       setActionError("网络错误，请检查连接后重试");
       await load();
     } finally {
+      slideGenAbortRef.current = null;
       unmarkSlideGenerating(targetSlideId);
     }
   }
@@ -574,7 +625,7 @@ export default function EditorPage() {
     try {
       const fd = new FormData();
       fd.append("file", file);
-      const upRes = await fetch("/api/upload/slide-image", {
+      const upRes = await fetch("/api/upload/style-reference", {
         method: "POST",
         body: fd,
       });
@@ -582,7 +633,11 @@ export default function EditorPage() {
       if (!upRes.ok) {
         throw new Error(upData.error || "上传失败");
       }
-      setPendingReferenceUrl(upData.url);
+      const refUrl = (upData.path ?? upData.url) as string | undefined;
+      if (!refUrl) {
+        throw new Error("上传成功但未返回文件路径");
+      }
+      setPendingReferenceUrl(refUrl);
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "上传失败");
     } finally {
@@ -690,10 +745,19 @@ export default function EditorPage() {
       )}
 
       {anySlideGenerating && !isCurrentSlideGenerating && (
-        <div className="border-b border-violet-500/30 bg-violet-500/10 px-4 py-2 text-center text-xs text-violet-300">
-          {generatingSlides.length === 1
-            ? `第 ${generatingSlides[0].index + 1} 页正在后台生成，可继续编辑其他页面`
-            : `${generatingSlides.length} 页正在后台生成，可继续编辑其他页面`}
+        <div className="flex flex-wrap items-center justify-center gap-3 border-b border-violet-500/30 bg-violet-500/10 px-4 py-2 text-center text-xs text-violet-300">
+          <span>
+            {generatingSlides.length === 1
+              ? `第 ${generatingSlides[0].index + 1} 页正在后台生成，可继续编辑其他页面`
+              : `${generatingSlides.length} 页正在后台生成，可继续编辑其他页面`}
+          </span>
+          <button
+            type="button"
+            className="underline hover:text-white"
+            onClick={() => void cancelSlideGeneration()}
+          >
+            停止全部等待
+          </button>
         </div>
       )}
 
@@ -778,7 +842,23 @@ export default function EditorPage() {
                         ? `${drawLabel} 正在按说明生成…`
                         : `${drawLabel} 正在重新设计此页…`}
                 </p>
-                <p className="text-xs text-white/50">通常需要 30–90 秒，可先切换编辑其他页</p>
+                <p className="text-xs text-white/50">
+                  {pendingReferenceUrl
+                    ? "上传参考修改（尤其 4K）可能需要 2–6 分钟，请勿重复点击"
+                    : "通常需要 30–90 秒，可先切换编辑其他页"}
+                </p>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="mt-2 border border-white/20 bg-black/40 text-white hover:bg-white/10"
+                  onClick={(ev) => {
+                    ev.stopPropagation();
+                    void cancelSlideGeneration(slide.id);
+                  }}
+                >
+                  停止等待（保留当前图）
+                </Button>
               </div>
             )}
           </div>
@@ -991,6 +1071,16 @@ export default function EditorPage() {
                         ? "按说明生成新图"
                         : "重新设计此页"}
                 </Button>
+                {isCurrentSlideGenerating && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => void cancelSlideGeneration(slide.id)}
+                  >
+                    停止等待
+                  </Button>
+                )}
                 <label
                   className={cn(
                     "flex h-9 w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/10 text-sm hover:bg-white/15",

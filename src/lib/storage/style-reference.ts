@@ -11,6 +11,14 @@ const REF_DIR = path.join(DATA_ROOT, "style-refs");
 /** 仅 GrsAI 传输时若超过此大小才静默压缩（用户无感知） */
 const GRSAI_SOFT_LIMIT = 12 * 1024 * 1024;
 
+/** 双图编辑（当前页 + 上传参考）时缩小请求体，避免 4K×2 拖垮乘丰 */
+const API_COMPACT_TARGET_BYTES = 750 * 1024;
+const API_COMPACT_MAX_EDGE = 1536;
+
+export type LoadStyleRefForGrsaiOptions = {
+  compact?: boolean;
+};
+
 function mimeFromExt(ext: string): string {
   switch (ext) {
     case "png":
@@ -89,7 +97,8 @@ function isNonPublicHost(hostname: string): boolean {
  * 发给 GrsAI：转 base64；仅当体积过大时后台静默压缩，不阻断用户上传
  */
 export async function loadStyleReferenceForGrsai(
-  stored: string | null | undefined
+  stored: string | null | undefined,
+  options?: LoadStyleRefForGrsaiOptions
 ): Promise<string[]> {
   if (!stored) return [];
 
@@ -132,8 +141,13 @@ export async function loadStyleReferenceForGrsai(
       return [];
     }
 
-    if (buf.length > GRSAI_SOFT_LIMIT) {
-      const { buffer, mime: outMime } = await optimizeImageBuffer(buf, mime);
+    const compact = options?.compact === true;
+    if (compact || buf.length > GRSAI_SOFT_LIMIT) {
+      const { buffer, mime: outMime } = await optimizeImageBuffer(buf, mime, {
+        targetBytes: compact ? API_COMPACT_TARGET_BYTES : undefined,
+        maxEdge: compact ? API_COMPACT_MAX_EDGE : undefined,
+        force: compact || buf.length > GRSAI_SOFT_LIMIT,
+      });
       return [bufferToDataUrl(buffer, outMime)];
     }
 

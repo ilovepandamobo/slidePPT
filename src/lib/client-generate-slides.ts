@@ -1,27 +1,27 @@
-import { mapWithConcurrency } from "@/lib/generation-concurrency";
+import {
+  getClientSlideGenerateConcurrency,
+  mapWithConcurrency,
+} from "@/lib/generation-concurrency";
 import {
   formatGenerateFailures,
   parseGenerateResponse,
   type GenerateFailure,
 } from "@/lib/generate-response";
 
-/** 前端并发请求数（每页一个 /generate，同时打 GrsAI） */
-const DEFAULT_CLIENT_CONCURRENCY = 12;
-
 export async function generateSlidesParallel(
   projectId: string,
   slideIds: string[],
   options?: {
     concurrency?: number;
+    imageQuality?: string | null;
     onProgress?: (done: number, total: number) => void;
   }
 ): Promise<{ failures: GenerateFailure[] }> {
   if (slideIds.length === 0) return { failures: [] };
 
-  const concurrency = Math.min(
-    options?.concurrency ?? DEFAULT_CLIENT_CONCURRENCY,
-    slideIds.length
-  );
+  const concurrency =
+    options?.concurrency ??
+    getClientSlideGenerateConcurrency(slideIds.length, options?.imageQuality);
   const failures: GenerateFailure[] = [];
   let done = 0;
 

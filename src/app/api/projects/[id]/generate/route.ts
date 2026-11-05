@@ -156,7 +156,7 @@ export async function POST(
           referenceOnlyImageUrl: useRefOnly ? storedUploadRef : null,
           isLayoutRemix,
           layoutReferenceImageUrl: slide.layoutReference,
-          fengKeySlotIndex: batchIndex,
+          fengKeySlotIndex: slide.order,
         }
       );
 

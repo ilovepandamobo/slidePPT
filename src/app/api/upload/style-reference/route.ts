@@ -1,8 +1,14 @@
 import { NextResponse } from "next/server";
+import { getSession } from "@/lib/auth";
 import { persistStyleReference } from "@/lib/storage/style-reference";
 import { formatStorageWriteError } from "@/lib/storage/disk-space";
 
 export async function POST(req: Request) {
+  const session = await getSession();
+  if (!session) {
+    return NextResponse.json({ error: "请先登录" }, { status: 401 });
+  }
+
   try {
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
@@ -18,6 +24,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       path: saved.path,
+      url: saved.path,
       fileName: file.name,
       size: file.size,
     });

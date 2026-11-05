@@ -34,6 +34,7 @@ import {
   generateSlidesParallel,
   summarizeParallelFailures,
 } from "@/lib/client-generate-slides";
+import { parseGenerateResponse } from "@/lib/generate-response";
 import {
   WaitingPlayground,
   type WaitingVariant,
@@ -189,11 +190,28 @@ function CreateWizard() {
         });
         const genData = await genRes.json();
         if (!genRes.ok) throw new Error(genData.error || "生成失败");
+      } else if (imageQuality === "hd") {
+        setGenProgress(
+          `${drawLabel} 正在生成 ${pageCount} 页（服务端最多 2 路 4K 并行）…`
+        );
+        const genRes = await fetch(`/api/projects/${projectId}/generate`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ slideIds }),
+        });
+        const genData = await parseGenerateResponse(genRes);
+        if (!genRes.ok) throw new Error(genData.error || "生成失败");
+        const summary = summarizeParallelFailures(
+          genData.failures ?? [],
+          pageCount
+        );
+        if (summary) setError(summary);
       } else {
         setGenProgress(
           `${drawLabel} 正在并发生成 ${pageCount} 页（每页独立请求）…`
         );
         const { failures } = await generateSlidesParallel(projectId, slideIds, {
+          imageQuality,
           onProgress: (done, total) =>
             setGenProgress(`${drawLabel} 已完成 ${done}/${total} 页…`),
         });
