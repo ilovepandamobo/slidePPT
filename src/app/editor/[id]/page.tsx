@@ -135,25 +135,79 @@ export default function EditorPage() {
     });
   }
 
+  function applyLocalCancel(ids: string[]) {
+    if (!project || ids.length === 0) return;
+    setProject({
+      ...project,
+      slides: project.slides.map((s) =>
+        ids.includes(s.id)
+          ? { ...s, status: s.imageUrl ? "done" : "pending" }
+          : s
+      ),
+    });
+  }
+
+  async function cancelSlideViaPatch(slideIds: string[]) {
+    for (const sid of slideIds) {
+      await fetch(`/api/projects/${id}/slides/${sid}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cancelGeneration: true }),
+      });
+    }
+  }
+
   /** 解除 UI/数据库「生成中」；不保证上游 AI 已停，完成后刷新可能看到新图 */
   async function cancelSlideGeneration(slideId?: string) {
-    if (slideId) {
-      slideGenAbortRef.current?.abort();
-      slideGenAbortRef.current = null;
-      unmarkSlideGenerating(slideId);
-    } else {
-      slideGenAbortRef.current?.abort();
-      slideGenAbortRef.current = null;
-      setGeneratingSlideIds(new Set());
-    }
+    const stuckIds =
+      slideId != null
+        ? [slideId]
+        : (project?.slides
+            .filter((s) => s.status === "generating")
+            .map((s) => s.id) ?? []);
+
+    slideGenAbortRef.current?.abort();
+    slideGenAbortRef.current = null;
+    setGeneratingSlideIds(new Set());
+    for (const sid of stuckIds) unmarkSlideGenerating(sid);
+    applyLocalCancel(stuckIds.length ? stuckIds : slide?.id ? [slide.id] : []);
 
     try {
-      const res = await fetch(`/api/projects/${id}/cancel-generation`, {
+      let res = await fetch(`/api/projects/${id}/cancel-generation`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(slideId ? { slideId } : {}),
       });
-      const data = await res.json();
+
+      if (res.status === 404) {
+        const fallbackIds = stuckIds.length
+          ? stuckIds
+          : slide?.id
+            ? [slide.id]
+            : [];
+        await cancelSlideViaPatch(fallbackIds);
+        await load();
+        setActionError(null);
+        setGenMessage("已停止等待（兼容模式）。可再次点「重新设计」重试。");
+        return;
+      }
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const fallbackIds = stuckIds.length
+          ? stuckIds
+          : slide?.id
+            ? [slide.id]
+            : [];
+        if (fallbackIds.length) {
+          await cancelSlideViaPatch(fallbackIds);
+          await load();
+          setGenMessage("已停止等待。可再次点「重新设计」重试。");
+          return;
+        }
+        throw new Error(data.error || `HTTP ${res.status}`);
+      }
+
       if (data.project) {
         setProject(data.project);
       } else {
@@ -163,9 +217,13 @@ export default function EditorPage() {
       setGenMessage(
         "已停止等待。若服务端仍在生成，1–2 分钟后刷新页面可能看到新图；可再点「重新设计」重试。"
       );
-    } catch {
+    } catch (e) {
       await load();
-      setActionError("停止失败，请刷新页面");
+      setActionError(
+        e instanceof Error
+          ? `停止失败：${e.message}。请硬刷新 (Cmd+Shift+R) 后再试。`
+          : "停止失败，请硬刷新页面"
+      );
     }
   }
 
@@ -693,6 +751,28 @@ export default function EditorPage() {
 
   return (
     <div className="flex h-[calc(100dvh-4rem)] flex-col overflow-hidden">
+      {anySlideGenerating && (
+        <div className="z-50 flex shrink-0 items-center justify-between gap-3 border-b border-amber-500/40 bg-amber-600/95 px-3 py-2.5 text-sm text-white sm:px-4">
+          <span className="min-w-0">
+            {isCurrentSlideGenerating
+              ? "本页正在生成；若长时间无结果，可点右侧停止（保留当前图）"
+              : "有页面在后台生成中"}
+          </span>
+          <Button
+            type="button"
+            size="sm"
+            variant="secondary"
+            className="shrink-0 bg-white text-amber-900 hover:bg-amber-50"
+            onClick={() =>
+              void cancelSlideGeneration(
+                slide && isSlideGenerating(slide) ? slide.id : undefined
+              )
+            }
+          >
+            停止等待
+          </Button>
+        </div>
+      )}
       <div className="flex flex-col gap-2 border-b border-white/5 px-3 py-2 sm:flex-row sm:items-center sm:justify-between sm:px-4 sm:py-3">
         <div className="flex min-w-0 items-center gap-2">
           <Button variant="ghost" size="sm" onClick={() => router.push("/projects")}>
@@ -1047,38 +1127,36 @@ export default function EditorPage() {
               )}
 
               <div className="flex flex-col gap-2">
-                <Button
-                  size="sm"
-                  onClick={runPrimarySlideAction}
-                  disabled={
-                    deckBusy ||
-                    isCurrentSlideGenerating ||
-                    isCurrentSlideUploading
-                  }
-                >
-                  {isCurrentSlideGenerating ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <RefreshCw className="h-4 w-4" />
-                  )}{" "}
-                  {isCurrentSlideGenerating
-                    ? "生成中…"
-                    : !slide.imageUrl
+                {isCurrentSlideGenerating ? (
+                  <>
+                    <Button size="sm" disabled className="opacity-70">
+                      <Loader2 className="h-4 w-4 animate-spin" /> 生成中…
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => void cancelSlideGeneration(slide.id)}
+                    >
+                      停止等待（保留当前图）
+                    </Button>
+                  </>
+                ) : (
+                  <Button
+                    size="sm"
+                    onClick={runPrimarySlideAction}
+                    disabled={
+                      deckBusy || isCurrentSlideUploading
+                    }
+                  >
+                    <RefreshCw className="h-4 w-4" />{" "}
+                    {!slide.imageUrl
                       ? pendingReferenceUrl
                         ? "按参考图生成本页"
                         : "生成本页"
                       : pendingReferenceUrl
                         ? "按说明生成新图"
                         : "重新设计此页"}
-                </Button>
-                {isCurrentSlideGenerating && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => void cancelSlideGeneration(slide.id)}
-                  >
-                    停止等待
                   </Button>
                 )}
                 <label

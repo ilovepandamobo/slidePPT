@@ -38,7 +38,22 @@ export async function POST(
 
   const cancelled: string[] = [];
   for (const slide of targets) {
-    if (slide.status !== "generating") continue;
+    if (slide.status !== "generating") {
+      if (slideId && slide.id === slideId) {
+        const updated = await prisma.project.findUnique({
+          where: { id: projectId },
+          include: { slides: { orderBy: { order: "asc" } } },
+        });
+        return NextResponse.json({
+          ok: true,
+          cancelledCount: 0,
+          cancelledSlideIds: [],
+          project: updated,
+          note: "该页已不在生成中",
+        });
+      }
+      continue;
+    }
     const nextStatus = slide.imageUrl ? "done" : "pending";
     await prisma.slide.update({
       where: { id: slide.id },

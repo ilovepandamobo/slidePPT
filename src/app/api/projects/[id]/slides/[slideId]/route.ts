@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { generateSlideImage } from "@/lib/ai/generate";
+import { syncProjectStatus } from "@/lib/project-status";
 
 export async function PATCH(
   req: Request,
@@ -22,16 +23,38 @@ export async function PATCH(
   }
 
   const body = await req.json();
+
+  const existing = project.slides.find((s) => s.id === slideId);
+  if (!existing) {
+    return NextResponse.json({ error: "页面不存在" }, { status: 404 });
+  }
+
+  if (body.cancelGeneration === true) {
+    const nextStatus =
+      existing.status === "generating"
+        ? existing.imageUrl
+          ? "done"
+          : "pending"
+        : existing.status;
+    const updated = await prisma.slide.update({
+      where: { id: slideId },
+      data: { status: nextStatus },
+    });
+    await syncProjectStatus(id);
+    return NextResponse.json({ slide: updated, cancelled: existing.status === "generating" });
+  }
+
+  const data: Record<string, unknown> = {};
+  if (body.title !== undefined) data.title = body.title;
+  if (body.content !== undefined) data.content = body.content;
+  if (body.notes !== undefined) data.notes = body.notes;
+  if (body.pageType !== undefined) data.pageType = body.pageType;
+  if (body.layout !== undefined) data.layout = body.layout;
+  if (body.imageUrl !== undefined) data.imageUrl = body.imageUrl;
+
   const slide = await prisma.slide.update({
     where: { id: slideId },
-    data: {
-      title: body.title,
-      content: body.content,
-      notes: body.notes,
-      pageType: body.pageType,
-      layout: body.layout,
-      imageUrl: body.imageUrl,
-    },
+    data,
   });
 
   if (body.regenerate) {
