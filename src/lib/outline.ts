@@ -322,6 +322,85 @@ export function inferShortTitle(text: string): string {
   return `${line.slice(0, 48)}…`;
 }
 
+/** 单页 brief：一、页面文案 + 二、排版设计，或文末标明 1 页 */
+function looksLikeSingleSlideBrief(raw: string): boolean {
+  const text = normalizeOutlineInput(raw);
+  if (/就\s*1\s*页|仅\s*1\s*页|单页\s*ppt|一页\s*ppt|只[做要]\s*1\s*页/i.test(text)) {
+    return true;
+  }
+  const hasCopy = /(?:^|\n)\s*[一二三四五六七八九十]+、\s*页面文案\b/m.test(
+    text
+  );
+  const hasLayout = /(?:^|\n)\s*[一二三四五六七八九十]+、\s*排版设计\b/m.test(
+    text
+  );
+  if (hasCopy && hasLayout) return true;
+
+  if (
+    !hasExplicitPageMarkers(text) &&
+    /(?:^|\n)\s*标题\s*[:：]/m.test(text) &&
+    /(?:^|\n)\s*副标题\s*[:：]/m.test(text) &&
+    (/排版设计/m.test(text) || /视觉风格/m.test(text))
+  ) {
+    const paras = text.split(/\n\s*\n/).filter((p) => p.trim());
+    return paras.length >= 4;
+  }
+  return false;
+}
+
+function stripOnePageHint(text: string): string {
+  return text.replace(/\s*以上内容就\s*1\s*页\s*ppt\s*$/i, "").trim();
+}
+
+function parseSingleSlideBrief(raw: string): OutlinePage {
+  const text = stripOnePageHint(normalizeOutlineInput(raw));
+  const layoutSplit = text.split(
+    /(?:^|\n)\s*[一二三四五六七八九十]+、\s*排版设计\s*/im
+  );
+  let copyPart = (layoutSplit[0] ?? text).replace(
+    /(?:^|\n)\s*[一二三四五六七八九十]+、\s*页面文案\s*/im,
+    "\n"
+  );
+  copyPart = copyPart.trim();
+  const layoutPart = stripOnePageHint(layoutSplit.slice(1).join("\n").trim());
+
+  let slideTitle = "";
+  const bodyLines: string[] = [];
+
+  for (const line of copyPart.split("\n")) {
+    const t = line.trim();
+    if (!t) continue;
+    const titleM = t.match(/^标题\s*[:：]\s*(.+)$/i);
+    if (titleM) {
+      slideTitle = titleM[1].trim();
+      continue;
+    }
+    const subM = t.match(/^副标题\s*[:：]\s*(.+)$/i);
+    if (subM) {
+      bodyLines.push(`副标题：${subM[1].trim()}`);
+      continue;
+    }
+    if (/^产品介绍\s*$/i.test(t)) continue;
+    bodyLines.push(t);
+  }
+
+  const content = normalizeBullets(bodyLines.join("\n"));
+  const notes = layoutPart
+    ? `排版设计：\n${normalizeBullets(layoutPart)}`
+    : undefined;
+
+  if (!slideTitle) {
+    slideTitle = inferShortTitle(copyPart) || "单页内容";
+  }
+
+  return {
+    pageType: detectPageType(slideTitle),
+    title: slideTitle,
+    content,
+    notes,
+  };
+}
+
 /**
  * 用户直接粘贴一段话（无「第N页」、无 # 标题）→ 单页或多段，正文完整保留
  */
@@ -348,6 +427,9 @@ export function parseOutline(raw: string): OutlinePage[] {
   if (chinese && chinese.length > 0) return chinese;
 
   if (!hasExplicitPageMarkers(trimmed) && !hasMarkdownHeaders(trimmed)) {
+    if (looksLikeSingleSlideBrief(trimmed)) {
+      return [parseSingleSlideBrief(trimmed)];
+    }
     const freeform = parseFreeformText(trimmed);
     if (freeform.length > 0) return freeform;
   }

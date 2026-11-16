@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
@@ -192,6 +193,23 @@ Second slide`;
     assert.equal(pages.length, 2);
     assert.equal(pages[0].title, "Hello World");
     assert.equal(pages[1].title, "Second slide");
+  });
+
+  it("treats 一、页面文案 + 二、排版设计 as one slide", () => {
+    const raw = readFileSync(
+      new URL("./outline/fixtures/shandong-single-slide.txt", import.meta.url),
+      "utf8"
+    );
+    const pages = parseOutline(raw);
+    assert.equal(pages.length, 1);
+    assert.ok(
+      pages[0].title.includes("JoinCompass") &&
+        pages[0].title.includes("山东航空")
+    );
+    assert.ok(pages[0].content.includes("出行前"));
+    assert.ok(pages[0].content.includes("WhatsApp"));
+    assert.ok(pages[0].notes?.includes("排版设计"));
+    assert.ok(pages[0].notes?.includes("四阶段场景横排"));
   });
 });
 

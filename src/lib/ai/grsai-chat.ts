@@ -44,6 +44,8 @@ export async function grsaiChatCompletion(
     body.response_format = { type: "json_object" };
   }
 
+  const timeoutMs = Number(process.env.GRSAI_CHAT_TIMEOUT_MS) || 45_000;
+
   try {
     const res = await fetch(`${baseUrl}/v1/chat/completions`, {
       method: "POST",
@@ -52,9 +54,18 @@ export async function grsaiChatCompletion(
         "Content-Type": "application/json",
       },
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(timeoutMs),
     });
 
-    if (!res.ok) return null;
+    if (!res.ok) {
+      const errText = await res.text().catch(() => "");
+      console.warn(
+        "[grsai-chat] HTTP",
+        res.status,
+        errText.slice(0, 200)
+      );
+      return null;
+    }
 
     const data = (await res.json()) as {
       choices?: { message?: { content?: string } }[];
