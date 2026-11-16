@@ -11,7 +11,7 @@
     "db:seed": "npx tsx prisma/seed.ts",
     "test:outline": "npx tsx --test src/lib/outline.test.ts src/lib/outline/confidence.test.ts",
     "test:prompts": "npx tsx --test src/lib/ai/prompts.test.ts",
-    "test:grsai-config": "npx tsx --test src/lib/ai/grsai-config.test.ts",
+    "test:grsai-config": "npx tsx --test src/lib/ai/grsai-config.test.ts src/lib/ai/image-model-fallbacks.test.ts src/lib/ai/grsai-images.test.ts",
     "postinstall": "prisma generate"
   },
   "prisma": {

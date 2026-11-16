@@ -4,6 +4,7 @@
  */
 
 import { getGrsaiApiKeys } from "@/lib/ai/grsai-keys";
+import { getStandardDrawModelChain } from "@/lib/ai/image-model-fallbacks";
 
 const DEFAULT_BASE_URL = "https://grsai.dakka.com.cn";
 
@@ -250,14 +251,15 @@ export async function persistRemoteImage(remoteUrl: string): Promise<string> {
   }
 }
 
-export async function generateWithGrsai(
+async function generateWithGrsaiDrawOneModel(
   params: GrsaiDrawParams,
   options?: { keySlotIndex?: number }
 ): Promise<string | null> {
   const keys = getGrsaiApiKeys();
   if (!keys.length) return null;
 
-  const { baseUrl, model: defaultModel } = getDrawRuntimeConfig();
+  const { baseUrl } = getDrawRuntimeConfig();
+  const model = params.model || getDrawRuntimeConfig().model;
   const perKeyRetries = Math.max(
     1,
     Number(process.env.GRSAI_GENERATE_RETRIES) || 1
@@ -271,15 +273,10 @@ export async function generateWithGrsai(
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const keyIndex = (startSlot + attempt) % keys.length;
     const apiKey = keys[keyIndex];
-    const logTag = `GrsAI Draw key ${keyIndex + 1}/${keys.length}`;
+    const logTag = `GrsAI Draw ${model} key ${keyIndex + 1}/${keys.length}`;
 
     try {
-      const taskId = await submitDrawTask(
-        params,
-        apiKey,
-        baseUrl,
-        defaultModel
-      );
+      const taskId = await submitDrawTask(params, apiKey, baseUrl, model);
       if (!taskId) {
         const isLast = attempt === maxAttempts - 1;
         if (!isLast) {
@@ -290,12 +287,7 @@ export async function generateWithGrsai(
         continue;
       }
 
-      const remoteUrl = await pollDrawResult(
-        taskId,
-        apiKey,
-        baseUrl,
-        params.model
-      );
+      const remoteUrl = await pollDrawResult(taskId, apiKey, baseUrl, model);
       return persistRemoteImage(remoteUrl);
     } catch (e) {
       if (e instanceof GrsaiPollTimeoutError) {
@@ -323,6 +315,38 @@ export async function generateWithGrsai(
         continue;
       }
       return null;
+    }
+  }
+
+  return null;
+}
+
+export async function generateWithGrsai(
+  params: GrsaiDrawParams,
+  options?: { keySlotIndex?: number }
+): Promise<string | null> {
+  const { model: defaultModel } = getDrawRuntimeConfig();
+  const models = getStandardDrawModelChain(params.model || defaultModel);
+
+  for (let mi = 0; mi < models.length; mi++) {
+    const model = models[mi];
+    try {
+      const url = await generateWithGrsaiDrawOneModel(
+        { ...params, model },
+        options
+      );
+      if (url) return url;
+    } catch (e) {
+      if (e instanceof GrsaiPollTimeoutError) throw e;
+      console.warn(
+        `[GrsAI Draw] model ${model} failed:`,
+        e instanceof Error ? e.message : e
+      );
+    }
+    if (mi < models.length - 1) {
+      console.warn(
+        `[GrsAI Draw] model ${model} exhausted, next: ${models[mi + 1]}`
+      );
     }
   }
 

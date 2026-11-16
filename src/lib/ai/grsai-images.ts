@@ -5,6 +5,7 @@
  */
 
 import { fetchFengImages, formatFetchError } from "@/lib/ai/feng-long-fetch";
+import { getHdImagesModelChain } from "@/lib/ai/image-model-fallbacks";
 import { persistRemoteImage } from "@/lib/ai/grsai";
 import { getGrsaiApiKeys } from "@/lib/ai/grsai-keys";
 
@@ -204,8 +205,7 @@ async function postImagesGenerations(
   return persistRemoteImage(remoteUrl);
 }
 
-/** 乘丰 Feng AI 4K：多密钥轮询，失败换下一个 key 再试 */
-export async function generateWithGrsaiImages(
+async function generateWithGrsaiImagesOneModel(
   params: GrsaiImagesParams,
   options?: { keySlotIndex?: number }
 ): Promise<string | null> {
@@ -222,11 +222,12 @@ export async function generateWithGrsaiImages(
       ? options.keySlotIndex % keys.length
       : fengKeyRotate++ % keys.length;
   const maxAttempts = keys.length * perKeyRetries;
+  const model = params.model || "gpt-image-2-vip";
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const keyIndex = (startSlot + attempt) % keys.length;
     const apiKey = keys[keyIndex];
-    const logTag = `FengAI 4K key ${keyIndex + 1}/${keys.length}`;
+    const logTag = `FengAI 4K ${model} key ${keyIndex + 1}/${keys.length}`;
 
     const url = await postImagesGenerations(
       { apiKey, baseUrl, logTag },
@@ -244,8 +245,29 @@ export async function generateWithGrsaiImages(
   return null;
 }
 
-/** GrsAI OpenAI 格式 4K：多密钥 + 国内 → 可选备用 → 全球节点 */
-export async function generateWithGrsaiPlatformImages(
+/** 乘丰 Feng AI 4K：多模型 → 多密钥轮询 */
+export async function generateWithGrsaiImages(
+  params: GrsaiImagesParams,
+  options?: { keySlotIndex?: number }
+): Promise<string | null> {
+  const models = getHdImagesModelChain(params.model);
+  for (let mi = 0; mi < models.length; mi++) {
+    const model = models[mi];
+    const url = await generateWithGrsaiImagesOneModel(
+      { ...params, model },
+      options
+    );
+    if (url) return url;
+    if (mi < models.length - 1) {
+      console.warn(
+        `[FengAI 4K] model ${model} exhausted, next: ${models[mi + 1]}`
+      );
+    }
+  }
+  return null;
+}
+
+async function generateWithGrsaiPlatformImagesOneModel(
   params: GrsaiImagesParams,
   options?: { keySlotIndex?: number }
 ): Promise<string | null> {
@@ -256,12 +278,13 @@ export async function generateWithGrsaiPlatformImages(
     options?.keySlotIndex !== undefined
       ? options.keySlotIndex % keys.length
       : 0;
+  const model = params.model || "gpt-image-2-vip";
 
   for (const baseUrl of getGrsaiPlatformBaseUrls()) {
     for (let ki = 0; ki < keys.length; ki++) {
       const keyIndex = (startSlot + ki) % keys.length;
       const apiKey = keys[keyIndex];
-      const logTag = `GrsAI 4K key ${keyIndex + 1}/${keys.length}`;
+      const logTag = `GrsAI 4K ${model} key ${keyIndex + 1}/${keys.length}`;
 
       const url = await postImagesGenerations(
         { apiKey, baseUrl, logTag },
@@ -269,7 +292,29 @@ export async function generateWithGrsaiPlatformImages(
       );
       if (url) return url;
     }
-    console.warn(`[GrsAI 4K] node failed, trying next base: ${baseUrl}`);
+    console.warn(`[GrsAI 4K ${model}] node failed, trying next base: ${baseUrl}`);
+  }
+  return null;
+}
+
+/** GrsAI OpenAI 格式 4K：多模型 → 多密钥 + 国内 / 全球节点 */
+export async function generateWithGrsaiPlatformImages(
+  params: GrsaiImagesParams,
+  options?: { keySlotIndex?: number }
+): Promise<string | null> {
+  const models = getHdImagesModelChain(params.model);
+  for (let mi = 0; mi < models.length; mi++) {
+    const model = models[mi];
+    const url = await generateWithGrsaiPlatformImagesOneModel(
+      { ...params, model },
+      options
+    );
+    if (url) return url;
+    if (mi < models.length - 1) {
+      console.warn(
+        `[GrsAI 4K] model ${model} exhausted, next: ${models[mi + 1]}`
+      );
+    }
   }
   return null;
 }
