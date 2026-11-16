@@ -1,8 +1,8 @@
 /**
  * 高清 4K 链路（典型：乘丰 key×2 + GrsAI key×1）：
  * 1. 乘丰 GRSAI_IMAGES_API_KEY / _2 分流 POST …/images/generations
- * 2. 失败 → GrsAI GRSAI_API_KEY 同格式 4K（GRSAI_BASE_URL）
- * 不降 1K；Draw vip 4K 像素不可用故跳过
+ * 2. 失败 → GrsAI POST /v1/api/generate（vip / flare / sunburst，4K 像素）
+ * 不降 1K
  */
 
 import {
@@ -67,7 +67,7 @@ async function runHdImagesChannels(
     if (grsai4k) {
       return {
         url: grsai4k,
-        provider: "grsai-images-4k",
+        provider: "grsai-generate-4k",
         usedDrawFallback: false,
       };
     }
@@ -92,10 +92,22 @@ export async function generateOutlineHdSlide(params: {
   const refs = params.referenceUrls?.length ? params.referenceUrls : undefined;
 
   if (!refs?.length) {
-    console.warn(
-      "[outline-hd] no reference for Feng 4K, trying GrsAI images/generations 4K"
+    console.warn("[outline-hd] no reference images, GrsAI /v1/api/generate 4K");
+    const url = await generateWithGrsaiPlatformImages(
+      {
+        prompt: params.prompt,
+        size: imagesCfg.size,
+        model: imagesCfg.model,
+        quality: FENG_4K_DEFAULT_QUALITY,
+        referenceUrls: [],
+      },
+      { keySlotIndex: params.fengKeySlotIndex }
     );
-    return { url: null, provider: "none", usedDrawFallback: false };
+    return {
+      url,
+      provider: url ? "grsai-generate-4k" : "none",
+      usedDrawFallback: false,
+    };
   }
 
   const dual = await runHdImagesChannels(
@@ -127,7 +139,7 @@ export async function generateOutlineHdSlide(params: {
   }
 
   console.warn(
-    "[outline-hd] all images/generations 4K channels failed (Draw 不支持 vip 4K，已跳过)"
+    "[outline-hd] Feng and GrsAI 4K both failed"
   );
   return { url: null, provider: "none", usedDrawFallback: false };
 }

@@ -1,18 +1,15 @@
 /**
- * OpenAI 格式 POST /v1/images/generations
- * - 乘丰 Feng：GRSAI_IMAGES_*（大纲 4K 优先）
- * - GrsAI 节点：GRSAI_BASE_URL + GRSAI_API_KEY（4K 回退）
+ * 4K 出图
+ * - 乘丰 Feng：OpenAI 格式 POST /v1/images/generations（GRSAI_IMAGES_*）
+ * - GrsAI 回退：POST /v1/api/generate（GRSAI_API_KEY，vip / flare / sunburst）
  */
 
 import { fetchFengImages, formatFetchError } from "@/lib/ai/feng-long-fetch";
 import { getHdImagesModelChain } from "@/lib/ai/image-model-fallbacks";
-import { persistRemoteImage } from "@/lib/ai/grsai";
-import { getGrsaiApiKeys } from "@/lib/ai/grsai-keys";
+import { generateWithGrsai, persistRemoteImage } from "@/lib/ai/grsai";
 
 /** 乘丰 4K 默认节点 */
 const DEFAULT_IMAGES_BASE_URL = "https://api.cphone.vip";
-const DEFAULT_GRSAI_BASE_URL = "https://grsai.dakka.com.cn";
-const DEFAULT_GRSAI_GLOBAL_BASE_URL = "https://grsaiapi.com";
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -82,25 +79,8 @@ function pickFengApiKey(preferredIndex?: number): { apiKey: string; slot: number
   return { apiKey: keys[slot], slot: slot + 1 };
 }
 
-/** GrsAI 4K 回退：国内节点失败后试全球节点 */
-function getGrsaiPlatformBaseUrls(): string[] {
-  const primary = (
-    process.env.GRSAI_BASE_URL || DEFAULT_GRSAI_BASE_URL
-  ).replace(/\/$/, "");
-  const extra = process.env.GRSAI_IMAGES_FALLBACK_BASE_URL?.trim().replace(
-    /\/$/,
-    ""
-  );
-  const globalDefault = DEFAULT_GRSAI_GLOBAL_BASE_URL.replace(/\/$/, "");
-  const urls = [primary];
-  if (extra && extra !== primary) urls.push(extra);
-  if (globalDefault !== primary && globalDefault !== extra) {
-    urls.push(globalDefault);
-  }
-  return [...new Set(urls)];
-}
+/** 转为外部 API 可访问的 image URL */
 
-/** 转为外部 API 可访问的 image URL（与 Draw urls 逻辑一致） */
 export function formatImagesApiUrls(urls: string[]): string[] {
   const base = (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").replace(
     /\/$/,
@@ -267,54 +247,20 @@ export async function generateWithGrsaiImages(
   return null;
 }
 
-async function generateWithGrsaiPlatformImagesOneModel(
-  params: GrsaiImagesParams,
-  options?: { keySlotIndex?: number }
-): Promise<string | null> {
-  const keys = getGrsaiApiKeys();
-  if (!keys.length) return null;
-
-  const startSlot =
-    options?.keySlotIndex !== undefined
-      ? options.keySlotIndex % keys.length
-      : 0;
-  const model = params.model || "gpt-image-2-vip";
-
-  for (const baseUrl of getGrsaiPlatformBaseUrls()) {
-    for (let ki = 0; ki < keys.length; ki++) {
-      const keyIndex = (startSlot + ki) % keys.length;
-      const apiKey = keys[keyIndex];
-      const logTag = `GrsAI 4K ${model} key ${keyIndex + 1}/${keys.length}`;
-
-      const url = await postImagesGenerations(
-        { apiKey, baseUrl, logTag },
-        params
-      );
-      if (url) return url;
-    }
-    console.warn(`[GrsAI 4K ${model}] node failed, trying next base: ${baseUrl}`);
-  }
-  return null;
-}
-
-/** GrsAI OpenAI 格式 4K：多模型 → 多密钥 + 国内 / 全球节点 */
+/** GrsAI 4K：新版 /v1/api/generate，多模型 + 国内 / 全球节点 */
 export async function generateWithGrsaiPlatformImages(
   params: GrsaiImagesParams,
   options?: { keySlotIndex?: number }
 ): Promise<string | null> {
   const models = getHdImagesModelChain(params.model);
-  for (let mi = 0; mi < models.length; mi++) {
-    const model = models[mi];
-    const url = await generateWithGrsaiPlatformImagesOneModel(
-      { ...params, model },
-      options
-    );
-    if (url) return url;
-    if (mi < models.length - 1) {
-      console.warn(
-        `[GrsAI 4K] model ${model} exhausted, next: ${models[mi + 1]}`
-      );
-    }
-  }
-  return null;
+  return generateWithGrsai(
+    {
+      prompt: params.prompt,
+      model: models[0],
+      aspectRatio: params.size,
+      quality: params.quality ?? FENG_4K_DEFAULT_QUALITY,
+      referenceUrls: params.referenceUrls,
+    },
+    { keySlotIndex: options?.keySlotIndex, models }
+  );
 }

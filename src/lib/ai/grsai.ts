@@ -1,41 +1,53 @@
 /**
- * GrsAI GPT Image 2 — https://grsai.dakka.com.cn (国内) / https://grsaiapi.com (海外)
- * 文档：POST /v1/draw/completions，webHook=-1 立即返回 id，再轮询 /v1/draw/result
+ * GrsAI GPT Image — https://grsai.dakka.com.cn (国内) / https://grsaiapi.com (海外)
+ * 文档：POST /v1/api/generate（replyType=async），再 GET /v1/api/result?id=
  */
 
 import { getGrsaiApiKeys } from "@/lib/ai/grsai-keys";
 import { getStandardDrawModelChain } from "@/lib/ai/image-model-fallbacks";
 
 const DEFAULT_BASE_URL = "https://grsai.dakka.com.cn";
+const GLOBAL_BASE_URL = "https://grsaiapi.com";
 
-type DrawSubmitResponse = {
-  code: number;
-  msg: string;
-  data?: { id: string };
+/** 只接受 quality=auto，且只接受比例或 1K 像素 */
+const STANDARD_MODELS = new Set([
+  "gpt-image-2",
+  "gpt-image-2.5",
+  "gpt-image-2.6",
+]);
+
+/** 旧 draw 接口尺寸 → 新版 1K 像素 */
+const LEGACY_STANDARD_PIXELS: Record<string, string> = {
+  "1792x1024": "1672x941",
+  "1024x768": "1443x1090",
+  "1024x1792": "941x1672",
 };
 
-type DrawResultPayload = {
-  id: string;
-  progress: number;
-  status: string;
+type TaskPayload = {
+  id?: string;
+  progress?: number;
+  status?: string;
   failure_reason?: string;
   error?: string;
   url?: string;
   results?: { url?: string; imageUrl?: string }[];
-};
-
-type DrawResultResponse = {
-  code: number;
-  msg: string;
-  data?: DrawResultPayload;
+  code?: number;
+  msg?: string;
+  data?: TaskPayload;
 };
 
 export type GrsaiDrawParams = {
   prompt: string;
   model?: string;
   aspectRatio?: string;
-  quality?: "auto" | "low" | "medium" | "high";
+  quality?: "auto" | "low" | "medium" | "high" | "xhigh" | "max";
   referenceUrls?: string[];
+};
+
+export type GrsaiGenerateOptions = {
+  keySlotIndex?: number;
+  /** 覆盖默认标清模型链（4K 回退传入 vip / flare / sunburst） */
+  models?: string[];
 };
 
 /** 轮询超时：不再提交新任务，由上层提示用户刷新 */
@@ -49,8 +61,8 @@ export class GrsaiPollTimeoutError extends Error {
   }
 }
 
-/** 从 GrsAI 轮询结果中提取图片 URL（兼容多种返回格式） */
-export function extractGrsaiImageUrl(data: DrawResultPayload): string | null {
+/** 从 GrsAI 结果中提取图片 URL（兼容多种返回格式） */
+export function extractGrsaiImageUrl(data: TaskPayload): string | null {
   if (data.url?.trim()) return data.url.trim();
   for (const item of data.results ?? []) {
     const u = item.url?.trim() || item.imageUrl?.trim();
@@ -59,11 +71,81 @@ export function extractGrsaiImageUrl(data: DrawResultPayload): string | null {
   return null;
 }
 
-function isDrawSucceeded(data: DrawResultPayload): boolean {
+export function qualityForGrsaiModel(
+  model: string,
+  requested?: string | null
+): string {
+  if (STANDARD_MODELS.has(model)) return "auto";
+  const q = (requested || "high").toLowerCase();
+  if (model === "gpt-image-2.5-sunburst") {
+    const allowed = ["auto", "low", "medium", "high", "xhigh", "max"];
+    return allowed.includes(q) ? q : "high";
+  }
+  const allowed = ["auto", "low", "medium", "high"];
+  return allowed.includes(q) ? q : "high";
+}
+
+export function aspectRatioForGrsaiModel(
+  model: string,
+  aspectRatio?: string | null
+): string {
+  const raw = aspectRatio?.trim() || (STANDARD_MODELS.has(model) ? "1672x941" : "1024x1024");
+  if (STANDARD_MODELS.has(model)) return LEGACY_STANDARD_PIXELS[raw] || raw;
+  return raw;
+}
+
+/** 组装 /v1/api/generate 请求体（不含密钥） */
+export function buildGrsaiGenerateBody(
+  params: GrsaiDrawParams,
+  defaultModel: string
+): Record<string, unknown> {
+  const model = params.model || defaultModel;
+  const body: Record<string, unknown> = {
+    model,
+    prompt: params.prompt,
+    aspectRatio: aspectRatioForGrsaiModel(model, params.aspectRatio),
+    quality: qualityForGrsaiModel(model, params.quality),
+    replyType: "async",
+  };
+
+  body.images = formatReferenceImages(params.referenceUrls);
+  return body;
+}
+
+function formatReferenceImages(urls?: string[]): string[] {
+  if (!urls?.length) return [];
+  const base = (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").replace(
+    /\/$/,
+    ""
+  );
+  return urls.slice(0, 4).map((u) => {
+    if (u.startsWith("http://") || u.startsWith("https://")) return u;
+    if (u.startsWith("data:image/")) return u;
+    if (u.startsWith("/api/files/")) return `${base}${u}`;
+    if (u.length > 100 && !u.includes(" ")) {
+      return `data:image/jpeg;base64,${u}`;
+    }
+    return u;
+  });
+}
+
+function unwrapTask(json: TaskPayload): TaskPayload {
+  if (json.data && (json.data.id || json.data.status || json.data.results || json.data.url)) {
+    return json.data;
+  }
+  return json;
+}
+
+function isTerminalFailure(status?: string): boolean {
+  const s = status?.toLowerCase();
+  return s === "failed" || s === "violation";
+}
+
+function isSucceeded(data: TaskPayload): boolean {
   const status = data.status?.toLowerCase();
   if (status === "succeeded" || status === "success") return true;
   const url = extractGrsaiImageUrl(data);
-  return Boolean(url && data.progress >= 100);
+  return Boolean(url && (data.progress ?? 0) >= 100);
 }
 
 function getDrawRuntimeConfig() {
@@ -75,65 +157,104 @@ function getDrawRuntimeConfig() {
   return { baseUrl, model };
 }
 
+/** 国内节点失败时再试海外节点（以及可选的 GRSAI_IMAGES_FALLBACK_BASE_URL） */
+export function grsaiGenerateBaseUrls(): string[] {
+  const primary = getDrawRuntimeConfig().baseUrl;
+  const extra = process.env.GRSAI_IMAGES_FALLBACK_BASE_URL?.trim().replace(
+    /\/$/,
+    ""
+  );
+  const urls = [primary];
+  if (extra && extra !== primary) urls.push(extra);
+  const global = GLOBAL_BASE_URL.replace(/\/$/, "");
+  if (!urls.includes(global)) urls.push(global);
+  return urls;
+}
+
 let grsaiKeyRotate = 0;
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function submitDrawTask(
+type SubmitResult =
+  | { kind: "task"; taskId: string }
+  | { kind: "url"; url: string }
+  | { kind: "rejected"; error: Error }
+  | { kind: "transport" };
+
+async function submitGenerateTask(
   params: GrsaiDrawParams,
   apiKey: string,
   baseUrl: string,
   defaultModel: string
-): Promise<string | null> {
-  if (!apiKey) return null;
+): Promise<SubmitResult> {
+  const body = buildGrsaiGenerateBody(params, defaultModel);
+  const model = String(body.model);
 
-  const body: Record<string, unknown> = {
-    model: params.model || defaultModel,
-    prompt: params.prompt,
-    aspectRatio: params.aspectRatio || "1792x1024",
-    quality: params.quality || "high",
-    webHook: "-1",
-    shutProgress: true,
-  };
-
-  if (params.referenceUrls?.length) {
-    body.urls = params.referenceUrls.slice(0, 4).map((u) => {
-      if (u.startsWith("http://") || u.startsWith("https://")) return u;
-      if (u.startsWith("data:image/")) return u;
-      if (u.length > 100 && !u.includes(" ")) {
-        return `data:image/jpeg;base64,${u}`;
-      }
-      return u;
+  let res: Response;
+  try {
+    res = await fetch(`${baseUrl}/v1/api/generate`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(60_000),
     });
+  } catch (e) {
+    console.error(
+      `[GrsAI] submit transport ${baseUrl}`,
+      e instanceof Error ? e.message : e
+    );
+    return { kind: "transport" };
   }
 
-  const res = await fetch(`${baseUrl}/v1/draw/completions`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify(body),
-  });
+  const text = await res.text();
+  let json: TaskPayload;
+  try {
+    json = JSON.parse(text) as TaskPayload;
+  } catch {
+    console.error("[GrsAI] submit invalid JSON", res.status, text.slice(0, 200));
+    return res.status >= 500 || res.status === 404
+      ? { kind: "transport" }
+      : { kind: "rejected", error: new Error(`GrsAI: invalid response (${res.status})`) };
+  }
+
+  if (typeof json.code === "number" && json.code !== 0) {
+    const detail = json.msg || json.error || `code ${json.code}`;
+    console.error("[GrsAI] submit error", detail);
+    return { kind: "rejected", error: new Error(`GrsAI: ${detail}`) };
+  }
+
+  const task = unwrapTask(json);
+  if (isTerminalFailure(task.status)) {
+    const detail = task.error || task.failure_reason || json.msg || "generate failed";
+    console.error("[GrsAI] submit failed", detail);
+    return { kind: "rejected", error: new Error(`GrsAI: ${detail}`) };
+  }
+
+  if (isSucceeded(task)) {
+    const imageUrl = extractGrsaiImageUrl(task);
+    if (imageUrl) return { kind: "url", url: imageUrl };
+  }
+
+  if (task.id) return { kind: "task", taskId: task.id };
 
   if (!res.ok) {
-    console.error("[GrsAI] submit HTTP", res.status, await res.text());
-    return null;
+    const detail = task.error || json.msg || text.slice(0, 200);
+    console.error("[GrsAI] submit HTTP", res.status, detail);
+    if (res.status === 404 || res.status >= 500) return { kind: "transport" };
+    return { kind: "rejected", error: new Error(`GrsAI: ${detail}`) };
   }
 
-  const json = (await res.json()) as DrawSubmitResponse;
-  if (json.code !== 0 || !json.data?.id) {
-    console.error("[GrsAI] submit error", json.msg, json);
-    return null;
-  }
-
-  return json.data.id;
+  console.error("[GrsAI] submit missing id", model, json);
+  return { kind: "rejected", error: new Error("GrsAI: submit response missing task id") };
 }
 
 function getPollSettings(model?: string) {
-  const isVip = model?.includes("vip");
+  const isVip = Boolean(model && !STANDARD_MODELS.has(model));
   const delayMs =
     Number(process.env.GRSAI_POLL_DELAY_MS) || (isVip ? 3000 : 2500);
   const maxAttempts =
@@ -153,47 +274,49 @@ async function pollDrawRound(
   apiKey: string,
   baseUrl: string
 ): Promise<PollRoundResult> {
-  const res = await fetch(`${baseUrl}/v1/draw/result`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({ id: taskId }),
-  });
-
-  if (!res.ok) {
-    return { type: "pending" };
-  }
-
-  let json: DrawResultResponse;
+  let res: Response;
   try {
-    json = (await res.json()) as DrawResultResponse;
+    const url = `${baseUrl}/v1/api/result?id=${encodeURIComponent(taskId)}`;
+    res = await fetch(url, {
+      method: "GET",
+      headers: { Authorization: `Bearer ${apiKey}` },
+      signal: AbortSignal.timeout(30_000),
+    });
   } catch {
     return { type: "pending" };
   }
 
-  if (json.code === -22 || json.code !== 0 || !json.data) {
-    if (json.code !== 0 && json.code !== -22) {
-      console.warn("[GrsAI] poll transient", json.code, json.msg);
+  let json: TaskPayload;
+  try {
+    json = (await res.json()) as TaskPayload;
+  } catch {
+    return { type: "pending" };
+  }
+
+  if (typeof json.code === "number" && json.code !== 0 && !json.data && !json.status) {
+    console.warn("[GrsAI] poll transient", json.code, json.msg);
+    return { type: "pending" };
+  }
+
+  const data = unwrapTask(json);
+  const status = data.status?.toLowerCase();
+
+  if (isTerminalFailure(status)) {
+    const detail = data.error || data.failure_reason || json.msg || "unknown";
+    console.error("[GrsAI] task failed", detail);
+    return { type: "failed", error: new Error(`GrsAI: ${detail}`) };
+  }
+
+  if (!res.ok) {
+    if (data.error && res.status === 400) {
+      return { type: "failed", error: new Error(`GrsAI: ${data.error}`) };
     }
     return { type: "pending" };
   }
 
-  const data = json.data;
-  const status = data.status?.toLowerCase();
-
-  if (status === "failed" || status === "violation") {
-    const detail = data.error || data.failure_reason || "unknown";
-    console.error("[GrsAI] task failed", data.failure_reason, data.error);
-    return { type: "failed", error: new Error(`GrsAI: ${detail}`) };
-  }
-
-  if (isDrawSucceeded(data)) {
+  if (isSucceeded(data)) {
     const imageUrl = extractGrsaiImageUrl(data);
-    if (imageUrl) {
-      return { type: "success", url: imageUrl };
-    }
+    if (imageUrl) return { type: "success", url: imageUrl };
     if (status === "succeeded" || status === "success") {
       return {
         type: "failed",
@@ -221,22 +344,14 @@ async function pollDrawResult(
   for (let i = 0; i < totalAttempts; i++) {
     const round = await pollDrawRound(taskId, apiKey, baseUrl);
 
-    if (round.type === "success") {
-      return round.url;
-    }
-    if (round.type === "failed") {
-      throw round.error;
-    }
+    if (round.type === "success") return round.url;
+    if (round.type === "failed") throw round.error;
 
     await sleep(delayMs);
   }
 
   const waitedSec = Math.round((totalAttempts * delayMs) / 1000);
-  console.error(
-    `[GrsAI] poll timeout after ${waitedSec}s`,
-    taskId,
-    model || ""
-  );
+  console.error(`[GrsAI] poll timeout after ${waitedSec}s`, taskId, model || "");
   throw new GrsaiPollTimeoutError(taskId, waitedSec);
 }
 
@@ -253,13 +368,14 @@ export async function persistRemoteImage(remoteUrl: string): Promise<string> {
 
 async function generateWithGrsaiDrawOneModel(
   params: GrsaiDrawParams,
-  options?: { keySlotIndex?: number }
+  options?: GrsaiGenerateOptions
 ): Promise<string | null> {
   const keys = getGrsaiApiKeys();
   if (!keys.length) return null;
 
-  const { baseUrl } = getDrawRuntimeConfig();
-  const model = params.model || getDrawRuntimeConfig().model;
+  const { model: defaultModel } = getDrawRuntimeConfig();
+  const model = params.model || defaultModel;
+  const baseUrls = grsaiGenerateBaseUrls();
   const perKeyRetries = Math.max(
     1,
     Number(process.env.GRSAI_GENERATE_RETRIES) || 1
@@ -273,49 +389,63 @@ async function generateWithGrsaiDrawOneModel(
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const keyIndex = (startSlot + attempt) % keys.length;
     const apiKey = keys[keyIndex];
-    const logTag = `GrsAI Draw ${model} key ${keyIndex + 1}/${keys.length}`;
+    const logTag = `GrsAI ${model} key ${keyIndex + 1}/${keys.length}`;
+    let rejected: Error | null = null;
 
-    try {
-      const taskId = await submitDrawTask(params, apiKey, baseUrl, model);
-      if (!taskId) {
-        const isLast = attempt === maxAttempts - 1;
-        if (!isLast) {
-          const waitMs = 3000 * ((attempt % perKeyRetries) + 1);
-          console.warn(`[${logTag}] submit failed, switch/wait ${waitMs}ms`);
-          await sleep(waitMs);
-        }
-        continue;
-      }
-
-      const remoteUrl = await pollDrawResult(taskId, apiKey, baseUrl, model);
-      return persistRemoteImage(remoteUrl);
-    } catch (e) {
-      if (e instanceof GrsaiPollTimeoutError) {
-        throw e;
-      }
-
-      const isTaskFailed =
-        e instanceof Error && e.message.startsWith("GrsAI:");
-
-      const isLast = attempt === maxAttempts - 1;
-      if (isTaskFailed && !isLast) {
-        const waitMs = 5000 * ((attempt % perKeyRetries) + 1);
-        console.warn(
-          `[${logTag}] task failed, switch/wait ${waitMs}ms:`,
-          e instanceof Error ? e.message : e
+    for (const baseUrl of baseUrls) {
+      try {
+        const submitted = await submitGenerateTask(
+          params,
+          apiKey,
+          baseUrl,
+          model
         );
-        await sleep(waitMs);
-        continue;
-      }
+        if (submitted.kind === "transport") {
+          console.warn(`[${logTag}] ${baseUrl} unreachable, next host`);
+          continue;
+        }
+        if (submitted.kind === "rejected") {
+          rejected = submitted.error;
+          break;
+        }
 
-      console.error(`[${logTag}] generate error`, e);
-      if (isTaskFailed) throw e;
-      if (!isLast) {
-        await sleep(3000);
-        continue;
+        const remoteUrl =
+          submitted.kind === "url"
+            ? submitted.url
+            : await pollDrawResult(submitted.taskId, apiKey, baseUrl, model);
+        return persistRemoteImage(remoteUrl);
+      } catch (e) {
+        if (e instanceof GrsaiPollTimeoutError) throw e;
+        rejected = e instanceof Error ? e : new Error(String(e));
+        break;
       }
-      return null;
     }
+
+    const isLast = attempt === maxAttempts - 1;
+    if (!rejected) {
+      if (!isLast) {
+        const waitMs = 3000 * ((attempt % perKeyRetries) + 1);
+        console.warn(`[${logTag}] submit failed, switch/wait ${waitMs}ms`);
+        await sleep(waitMs);
+      }
+      continue;
+    }
+
+    const isTaskFailed = rejected.message.startsWith("GrsAI:");
+    if (isTaskFailed && !isLast) {
+      const waitMs = 5000 * ((attempt % perKeyRetries) + 1);
+      console.warn(`[${logTag}] task failed, switch/wait ${waitMs}ms:`, rejected.message);
+      await sleep(waitMs);
+      continue;
+    }
+
+    console.error(`[${logTag}] generate error`, rejected);
+    if (isTaskFailed) throw rejected;
+    if (!isLast) {
+      await sleep(3000);
+      continue;
+    }
+    return null;
   }
 
   return null;
@@ -323,10 +453,12 @@ async function generateWithGrsaiDrawOneModel(
 
 export async function generateWithGrsai(
   params: GrsaiDrawParams,
-  options?: { keySlotIndex?: number }
+  options?: GrsaiGenerateOptions
 ): Promise<string | null> {
   const { model: defaultModel } = getDrawRuntimeConfig();
-  const models = getStandardDrawModelChain(params.model || defaultModel);
+  const models = options?.models?.length
+    ? [...new Set(options.models.map((m) => m.trim()).filter(Boolean))]
+    : getStandardDrawModelChain(params.model || defaultModel);
 
   for (let mi = 0; mi < models.length; mi++) {
     const model = models[mi];
@@ -339,14 +471,12 @@ export async function generateWithGrsai(
     } catch (e) {
       if (e instanceof GrsaiPollTimeoutError) throw e;
       console.warn(
-        `[GrsAI Draw] model ${model} failed:`,
+        `[GrsAI] model ${model} failed:`,
         e instanceof Error ? e.message : e
       );
     }
     if (mi < models.length - 1) {
-      console.warn(
-        `[GrsAI Draw] model ${model} exhausted, next: ${models[mi + 1]}`
-      );
+      console.warn(`[GrsAI] model ${model} exhausted, next: ${models[mi + 1]}`);
     }
   }
 

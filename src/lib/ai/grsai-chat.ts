@@ -12,10 +12,11 @@ export type GrsaiChatParams = {
 };
 
 const DEFAULT_CHAT_MODELS = [
-  "gemini-2.5-flash",
-  "gemini-2.0-flash-001",
-  "deepseek-chat",
-  "qwen-plus",
+  "gpt-6.1-terra",
+  "gpt-6.1-sol",
+  "gpt-5.6-sol",
+  "gpt-5.6-terra",
+  "gpt-6-astra",
 ] as const;
 
 function parseChatModelList(env: string | undefined): string[] {
@@ -27,7 +28,7 @@ function parseChatModelList(env: string | undefined): string[] {
 }
 
 export function getChatModelChain(primary?: string | null): string[] {
-  const p = primary?.trim() || process.env.GRSAI_CHAT_MODEL?.trim() || "gemini-2.5-flash";
+  const p = primary?.trim() || process.env.GRSAI_CHAT_MODEL?.trim() || DEFAULT_CHAT_MODELS[0];
   const fromEnv = parseChatModelList(process.env.GRSAI_CHAT_MODEL_FALLBACKS);
   const rest = fromEnv.length ? fromEnv : [...DEFAULT_CHAT_MODELS];
   return [...new Set([p, ...rest.filter((m) => m !== p)])];
@@ -67,6 +68,7 @@ async function grsaiChatCompletionOneModel(
   }
 
   const timeoutMs = Number(process.env.GRSAI_CHAT_TIMEOUT_MS) || 45_000;
+  console.info(`[grsai-chat] POST ${baseUrl}/v1/chat/completions model=${model}`);
 
   try {
     const res = await fetch(`${baseUrl}/v1/chat/completions`, {

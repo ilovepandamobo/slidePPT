@@ -45,7 +45,7 @@ describe("resolveGrsaiImagesConfig", () => {
 describe("resolveGrsaiDrawFallbackConfig", () => {
   it("uses 1K standard pixels", () => {
     const c = resolveGrsaiDrawFallbackConfig("16:9");
-    assert.equal(c.aspectRatio, "1792x1024");
+    assert.equal(c.aspectRatio, "1672x941");
     assert.equal(c.model, "gpt-image-2");
   });
 });

@@ -10,16 +10,19 @@ export function parseImageQuality(value: string | null | undefined): ImageQualit
   return value === "hd" ? "hd" : "standard";
 }
 
-/** 标准模型像素（旧 draw/completions 常用值） */
+/**
+ * 标准模型 1K 像素（gpt-image-2 / 2.5 / 2.6）。
+ * 新版 /v1/api/generate 不再接受 1792x1024 等旧尺寸。
+ */
 function standardPixelsForRatio(ratio: string): string {
   switch (ratio) {
     case "4:3":
-      return "1024x768";
+      return "1443x1090";
     case "9:16":
-      return "1024x1792";
+      return "941x1672";
     case "16:9":
     default:
-      return "1792x1024";
+      return "1672x941";
   }
 }
 
@@ -67,7 +70,7 @@ export function resolveGrsaiDrawConfig(
   };
 }
 
-/** DALL·E 格式 /v1/images/generations — 4K 优先通道（须 gpt-image-2-vip 才输出真 4K） */
+/** 4K 尺寸。乘丰走 images/generations；GrsAI 回退走 /v1/api/generate */
 export function resolveGrsaiImagesConfig(
   projectAspectRatio: string | undefined
 ): { model: string; size: string; label: string } {
@@ -95,7 +98,7 @@ export function resolveGenerationLabel(
   return resolveGrsaiDrawConfig(projectAspectRatio, imageQuality).label;
 }
 
-/** Draw 回退：供应商现仅稳定支持 1K */
+/** 标清回退尺寸：新版标准模型的 1K 像素 */
 export function resolveGrsaiDrawFallbackConfig(
   projectAspectRatio: string | undefined
 ): { model: string; aspectRatio: string } {

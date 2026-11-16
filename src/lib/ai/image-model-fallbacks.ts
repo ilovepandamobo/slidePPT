@@ -6,14 +6,12 @@ const DEFAULT_HD_IMAGES_MODELS = [
   "gpt-image-2.5-flare",
   "gpt-image-2.6-sunburst",
   "gpt-image-2.6-flare",
-  "nano-banana-2.1",
 ] as const;
 
 const DEFAULT_STANDARD_DRAW_MODELS = [
   "gpt-image-2",
   "gpt-image-2.5",
   "gpt-image-2.6",
-  "nano-banana-2.1",
 ] as const;
 
 function parseEnvModelList(env: string | undefined): string[] {
@@ -29,7 +27,7 @@ function uniqueChain(primary: string, rest: readonly string[]): string[] {
   return [...new Set(chain)];
 }
 
-/** /v1/images/generations 4K 通道 */
+/** 4K：乘丰 /v1/images/generations，GrsAI 回退走 /v1/api/generate */
 export function getHdImagesModelChain(primary?: string | null): string[] {
   const p =
     primary?.trim() ||
@@ -42,7 +40,7 @@ export function getHdImagesModelChain(primary?: string | null): string[] {
   return uniqueChain(p, DEFAULT_HD_IMAGES_MODELS);
 }
 
-/** /v1/draw/completions 标清通道 */
+/** GrsAI /v1/api/generate 标清通道（仅 auto 画质、1K 像素） */
 export function getStandardDrawModelChain(primary?: string | null): string[] {
   const envPrimary = process.env.GRSAI_MODEL?.trim();
   const p = primary?.trim() || envPrimary || "gpt-image-2";
