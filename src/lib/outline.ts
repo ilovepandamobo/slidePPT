@@ -62,9 +62,11 @@ export function normalizeOutlineInput(raw: string): string {
 }
 
 function hasEnglishPageMarkers(raw: string): boolean {
-  return /(?:^|\n)\s*(?:Page|Slide|PPT|幻灯片)\s*\d+\s*[:：\-—]?/im.test(
-    raw
-  );
+  for (const line of raw.split("\n")) {
+    const trimmed = line.replace(/^#+\s*/, "").trim();
+    if (ENGLISH_PAGE_HEADER_RE.test(trimmed)) return true;
+  }
+  return false;
 }
 
 function hasBracketPageMarkers(raw: string): boolean {

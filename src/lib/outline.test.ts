@@ -104,6 +104,44 @@ const ZHUANZHENG_SNIPPET = `第一页 封面
 第十七页 结尾页
 生成结尾页，内容为"感谢聆听 / Q&A"。`;
 
+const ENGLISH_SLIDE_MD = `# JoinMC for Automotive Dealers in Indonesia
+## 17-slide PowerPoint generation brief
+
+### Instructions for the slide generator
+
+Build an editable 16:9 PowerPoint in English.
+
+### Slide 01 — JoinMC for Automotive Dealers in Indonesia
+
+**Slide copy**
+
+**JoinMC for Automotive Dealers in Indonesia**
+
+### Slide 02 — WhatsApp Business at a Glance
+
+**Slide copy**
+
+**WhatsApp Business at a Glance**
+
+### Slide 03 — WhatsApp in Indonesia
+
+**Slide copy**
+
+**WhatsApp in Indonesia**
+`;
+
+describe("parseOutline english Slide NN markdown headers", () => {
+  it("parses ### Slide NN as page boundaries, not every markdown heading", () => {
+    assert.equal(hasExplicitPageMarkers(ENGLISH_SLIDE_MD), true);
+    const pages = parseOutline(ENGLISH_SLIDE_MD);
+    assert.equal(pages.length, 3);
+    assert.equal(pages[0].title, "JoinMC for Automotive Dealers in Indonesia");
+    assert.equal(pages[1].title, "WhatsApp Business at a Glance");
+    assert.equal(pages[2].title, "WhatsApp in Indonesia");
+    assert.ok(pages[0].content.includes("JoinMC for Automotive"));
+  });
+});
+
 describe("parseOutline chinese ordinal pages", () => {
   it("parses 第一页 / 第二页 format without colon", () => {
     const pages = parseOutline(ZHUANZHENG_SNIPPET);

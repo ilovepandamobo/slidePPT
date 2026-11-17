@@ -117,7 +117,7 @@ export function WaitingPlayground({
           ) : (
             <p className="mt-2 text-sm text-slate-500">
               {variant === "outline"
-                ? "通常 10–40 秒，标准格式会更快"
+                ? "含 Slide/Page 标记时通常几秒内；长文无页码走 AI 可能 1–3 分钟"
                 : variant === "generate"
                   ? "每页独立生成，请稍候"
                   : "灵感加载中…"}

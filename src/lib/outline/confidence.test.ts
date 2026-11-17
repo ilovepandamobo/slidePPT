@@ -30,6 +30,15 @@ describe("outline confidence", () => {
     );
   });
 
+  it("skips LLM for markdown ### Slide NN brief with matching page count", () => {
+    const raw = `# Brief\n\n### Slide 01 — Cover\n\n**Slide copy**\n\nHello\n\n### Slide 02 — Next\n\n**Slide copy**\n\nWorld`;
+    const pages = parseOutline(raw);
+    assert.equal(pages.length, 2);
+    const conf = scoreOutlineConfidence(raw, pages);
+    assert.ok(conf.score >= 0.85);
+    assert.equal(shouldUseLlmNormalize(raw, pages, conf), false);
+  });
+
   it("flags ambiguous format as low confidence", () => {
     const raw = `=== 封面 ===
 主标题：JoinSpark AI
