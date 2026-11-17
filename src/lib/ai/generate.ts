@@ -4,6 +4,7 @@ import { generateWithGrsai, GrsaiPollTimeoutError } from "@/lib/ai/grsai";
 import {
   generateOutlineHdSlide,
   isOutlineHdGeneration,
+  type HdImageChannel,
 } from "@/lib/ai/grsai-hd";
 import {
   buildSlideGenerationPrompt,
@@ -49,6 +50,8 @@ type GenerateOptions = {
   isLayoutRemix?: boolean;
   /** 批量：按页分配乘丰 / GrsAI Draw 密钥槽（0,1,…） */
   fengKeySlotIndex?: number;
+  /** 出图通道：批量编排时传 grsai-only / feng-only */
+  imageChannel?: HdImageChannel;
 };
 
 async function collectAllReferenceUrls(
@@ -229,21 +232,34 @@ export async function generateSlideImage(
   let provider = quality === "hd" ? "grsai-vip-4k" : "grsai";
 
   try {
+    const channel = options.imageChannel ?? "auto";
+
     if (useOutlineHd) {
       const hd = await generateOutlineHdSlide({
         prompt,
         referenceUrls: referenceUrls.length ? referenceUrls : undefined,
         aspectRatio: options.aspectRatio,
         fengKeySlotIndex: options.fengKeySlotIndex,
+        channel,
       });
       grsaiUrl = hd.url;
       provider = hd.provider;
+      if (!grsaiUrl && channel !== "auto") {
+        throw new Error(
+          channel === "grsai-only"
+            ? "GrsAI 4K 未返回图片"
+            : "乘丰 4K 未返回图片"
+        );
+      }
       if (hd.url && hd.provider.startsWith("feng-ai-4k") && hd.usedDrawFallback) {
         console.warn(
           "[generateSlideImage] GrsAI 4K unavailable, used Feng /v1/images/generations"
         );
       }
     } else {
+      if (channel === "feng-only") {
+        throw new Error("标准画质不走乘丰通道");
+      }
       grsaiUrl = await generateWithGrsai(
         {
           prompt,
@@ -255,8 +271,19 @@ export async function generateSlideImage(
         { keySlotIndex: options.fengKeySlotIndex }
       );
       provider = quality === "hd" ? "grsai-vip-4k" : "grsai";
+      if (!grsaiUrl && channel === "grsai-only") {
+        throw new Error("GrsAI 未返回图片");
+      }
     }
   } catch (e) {
+    if (options.imageChannel && options.imageChannel !== "auto") {
+      if (e instanceof GrsaiPollTimeoutError) {
+        throw new Error(
+          `GrsAI 等待超时（约 ${e.waitedSec} 秒），任务可能仍在处理`
+        );
+      }
+      throw e instanceof Error ? e : new Error("图片生成失败");
+    }
     console.warn(
       "[generateSlideImage] GrsAI failed, trying fallback:",
       e instanceof Error ? e.message : e

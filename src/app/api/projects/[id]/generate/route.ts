@@ -4,8 +4,14 @@ import { getSession } from "@/lib/auth";
 import { generateSlideImage } from "@/lib/ai/generate";
 import {
   getGenerationConcurrency,
+  getGrsaiGenerationConcurrency,
   mapWithConcurrency,
 } from "@/lib/generation-concurrency";
+import {
+  runGrsaiFirstBatchPolicy,
+  runGrsaiFirstSlidePolicy,
+} from "@/lib/ai/slide-gen-orchestrate";
+import type { HdImageChannel } from "@/lib/ai/grsai-hd";
 
 /** VIP 4K 单页可能 2–7 分钟，多页并发取最慢一页 */
 export const maxDuration = 600;
@@ -113,7 +119,12 @@ export async function POST(
 
   const total = proj.slides.length;
   let completed = 0;
+  const useGrsaiOrchestrate = process.env.HD_IMAGES_PREFER_FENG !== "true";
   const concurrency = getGenerationConcurrency(
+    slidesToGenerate.length,
+    proj.imageQuality
+  );
+  const grsaiConcurrency = getGrsaiGenerationConcurrency(
     slidesToGenerate.length,
     proj.imageQuality
   );
@@ -126,67 +137,112 @@ export async function POST(
     storedUploadRef = await ensureStoredImageUrl(referenceImageUrl);
   }
 
-  async function generateOne(slide: SlideRow, batchIndex: number) {
+  function recordFailure(slide: SlideRow, e: unknown) {
+    const msg = e instanceof Error ? e.message : "本页生成失败";
+    failures.push({
+      order: slide.order + 1,
+      title: slide.title,
+      error: msg,
+    });
+  }
+
+  async function executeGenerate(
+    slide: SlideRow,
+    imageChannel?: HdImageChannel
+  ) {
     await prisma.slide.update({
       where: { id: slide.id },
       data: { status: "generating" },
     });
 
+    const useRefOnly = Boolean(storedUploadRef && !slide.imageUrl);
+
+    const { imageUrl: rawUrl } = await generateSlideImage(
+      {
+        title: slide.title,
+        content: slide.content,
+        pageType: slide.pageType,
+        notes: slide.notes,
+        imageUrl: slide.imageUrl,
+      },
+      {
+        templateId: proj.templateId,
+        stylePrompt: proj.stylePrompt,
+        styleReference: useRefOnly ? null : proj.styleReference,
+        styleToken: proj.styleToken,
+        watermark: proj.watermark,
+        pageIndex: slide.order,
+        totalPages: total,
+        aspectRatio: proj.aspectRatio,
+        imageQuality: proj.imageQuality,
+        referenceOnlyImageUrl: useRefOnly ? storedUploadRef : null,
+        isLayoutRemix,
+        layoutReferenceImageUrl: slide.layoutReference,
+        fengKeySlotIndex: slide.order,
+        imageChannel,
+      }
+    );
+
+    const imageUrl = (await ensureStoredImageUrl(rawUrl)) || rawUrl;
+
+    await prisma.slide.update({
+      where: { id: slide.id },
+      data: { imageUrl, status: "done" },
+    });
+
+    completed++;
+    await prisma.generationJob.update({
+      where: { id: job.id },
+      data: { progress: completed },
+    });
+  }
+
+  async function generateOne(slide: SlideRow, _batchIndex: number) {
     try {
-      const useRefOnly = Boolean(storedUploadRef && !slide.imageUrl);
-
-      const { imageUrl: rawUrl } = await generateSlideImage(
-        {
-          title: slide.title,
-          content: slide.content,
-          pageType: slide.pageType,
-          notes: slide.notes,
-          imageUrl: slide.imageUrl,
-        },
-        {
-          templateId: proj.templateId,
-          stylePrompt: proj.stylePrompt,
-          styleReference: useRefOnly ? null : proj.styleReference,
-          styleToken: proj.styleToken,
-          watermark: proj.watermark,
-          pageIndex: slide.order,
-          totalPages: total,
-          aspectRatio: proj.aspectRatio,
-          imageQuality: proj.imageQuality,
-          referenceOnlyImageUrl: useRefOnly ? storedUploadRef : null,
-          isLayoutRemix,
-          layoutReferenceImageUrl: slide.layoutReference,
-          fengKeySlotIndex: slide.order,
-        }
-      );
-
-      const imageUrl = (await ensureStoredImageUrl(rawUrl)) || rawUrl;
-
-      await prisma.slide.update({
-        where: { id: slide.id },
-        data: { imageUrl, status: "done" },
-      });
-
-      completed++;
-      await prisma.generationJob.update({
-        where: { id: job.id },
-        data: { progress: completed },
-      });
+      await executeGenerate(slide);
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "本页生成失败";
       await prisma.slide.update({
         where: { id: slide.id },
         data: { status: "failed" },
       });
-      failures.push({
-        order: slide.order + 1,
-        title: slide.title,
-        error: msg,
-      });
+      recordFailure(slide, e);
     }
   }
 
-  await mapWithConcurrency(slidesToGenerate, concurrency, generateOne);
+  if (useGrsaiOrchestrate && slidesToGenerate.length > 1) {
+    const useFeng = proj.imageQuality === "hd";
+    const { failed } = await runGrsaiFirstBatchPolicy(
+      slidesToGenerate,
+      grsaiConcurrency,
+      async (slide, channel) => executeGenerate(slide, channel),
+      useFeng ? async (slide) => executeGenerate(slide, "feng-only") : null
+    );
+    for (const slide of failed) {
+      await prisma.slide.update({
+        where: { id: slide.id },
+        data: { status: "failed" },
+      });
+      recordFailure(slide, new Error("GrsAI×3 与乘丰均未成功"));
+    }
+  } else if (useGrsaiOrchestrate && slidesToGenerate.length === 1) {
+    const slide = slidesToGenerate[0]!;
+    const useFeng = proj.imageQuality === "hd";
+    try {
+      await runGrsaiFirstSlidePolicy(
+        () => executeGenerate(slide, "grsai-only"),
+        () => executeGenerate(slide, "feng-only"),
+        useFeng
+      );
+    } catch (e) {
+      await prisma.slide.update({
+        where: { id: slide.id },
+        data: { status: "failed" },
+      });
+      recordFailure(slide, e);
+    }
+  } else {
+    await mapWithConcurrency(slidesToGenerate, concurrency, generateOne);
+  }
 
   if (failures.length === slidesToGenerate.length) {
     const msg =

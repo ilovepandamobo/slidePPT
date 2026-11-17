@@ -47,6 +47,22 @@ export function getClientSlideGenerateConcurrency(
   return Math.min(Math.max(slideCount, 1), cap);
 }
 
+/** GrsAI 首轮「一起提交」并发（高于乘丰 2 路限制） */
+export function getGrsaiGenerationConcurrency(
+  slideCount: number,
+  imageQuality?: string | null
+): number {
+  const raw = process.env.GRSAI_GENERATION_CONCURRENCY;
+  if (raw !== undefined && raw !== "") {
+    const n = Number(raw);
+    if (Number.isFinite(n) && n >= 1) {
+      return Math.min(Math.floor(n), 20);
+    }
+  }
+  const cap = imageQuality === "hd" ? 6 : 12;
+  return Math.min(Math.max(slideCount, 1), cap);
+}
+
 export async function mapWithConcurrency<T, R>(
   items: T[],
   concurrency: number,

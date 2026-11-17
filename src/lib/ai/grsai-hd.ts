@@ -18,6 +18,8 @@ export type OutlineHdResult = {
   usedDrawFallback: boolean;
 };
 
+export type HdImageChannel = "auto" | "grsai-only" | "feng-only";
+
 function preferFeng4KFirst(): boolean {
   return process.env.HD_IMAGES_PREFER_FENG === "true";
 }
@@ -37,7 +39,8 @@ async function runHdImagesChannels(
   refs: string[],
   imagesCfg: ReturnType<typeof resolveGrsaiImagesConfig>,
   fengKeySlotIndex: number | undefined,
-  label: string
+  label: string,
+  channel: HdImageChannel
 ): Promise<OutlineHdResult | null> {
   console.info(`[outline-hd] ${label} refs=${refs.length}`);
 
@@ -91,6 +94,13 @@ async function runHdImagesChannels(
     return null;
   };
 
+  if (channel === "grsai-only") {
+    return tryGrsai();
+  }
+  if (channel === "feng-only") {
+    return tryFeng(true);
+  }
+
   const grsaiFirst = !preferFeng4KFirst();
   const first = grsaiFirst ? tryGrsai : () => tryFeng(false);
   const second = grsaiFirst
@@ -117,11 +127,30 @@ export async function generateOutlineHdSlide(params: {
   referenceUrls?: string[];
   aspectRatio?: string;
   fengKeySlotIndex?: number;
+  channel?: HdImageChannel;
 }): Promise<OutlineHdResult> {
   const imagesCfg = resolveGrsaiImagesConfig(params.aspectRatio);
   const refs = params.referenceUrls?.length ? params.referenceUrls : undefined;
+  const channel = params.channel ?? "auto";
 
   if (!refs?.length) {
+    if (channel === "feng-only") {
+      const url = await generateWithGrsaiImages(
+        {
+          prompt: params.prompt,
+          size: imagesCfg.size,
+          model: imagesCfg.model,
+          quality: FENG_4K_DEFAULT_QUALITY,
+          referenceUrls: [],
+        },
+        { keySlotIndex: params.fengKeySlotIndex }
+      );
+      return {
+        url,
+        provider: url ? "feng-ai-4k" : "none",
+        usedDrawFallback: false,
+      };
+    }
     console.warn("[outline-hd] no reference images, GrsAI /v1/api/generate 4K");
     const url = await generateWithGrsaiPlatformImages(
       {
@@ -145,7 +174,8 @@ export async function generateOutlineHdSlide(params: {
     refs,
     imagesCfg,
     params.fengKeySlotIndex,
-    "dual-image"
+    "dual-image",
+    channel
   );
   if (dual?.url) return dual;
 
@@ -158,7 +188,8 @@ export async function generateOutlineHdSlide(params: {
       [refs[0]],
       imagesCfg,
       params.fengKeySlotIndex,
-      "single-image-fallback"
+      "single-image-fallback",
+      channel
     );
     if (single?.url) {
       return {
