@@ -79,6 +79,9 @@ function parseLlmResponse(text: string): LlmOutlineResponse | null {
   }
 }
 
+const OUTLINE_LLM_TIMEOUT_MS =
+  Number(process.env.GRSAI_CHAT_OUTLINE_TIMEOUT_MS) || 180_000;
+
 async function callNormalizeLlm(userContent: string): Promise<string | null> {
   return grsaiChatCompletion({
     messages: [
@@ -88,6 +91,7 @@ async function callNormalizeLlm(userContent: string): Promise<string | null> {
     jsonMode: true,
     maxTokens: 8000,
     temperature: 0,
+    timeoutMs: OUTLINE_LLM_TIMEOUT_MS,
   });
 }
 

@@ -9,6 +9,8 @@ export type GrsaiChatParams = {
   temperature?: number;
   jsonMode?: boolean;
   maxTokens?: number;
+  /** 单次请求等待上限；大纲等长任务请用更大值 */
+  timeoutMs?: number;
 };
 
 const DEFAULT_CHAT_MODELS = [
@@ -49,12 +51,24 @@ export function isGrsaiChatConfigured(): boolean {
   return Boolean(process.env.GRSAI_API_KEY?.trim());
 }
 
+function isFetchTimeoutError(e: unknown): boolean {
+  if (!(e instanceof Error)) return false;
+  if (e.name === "TimeoutError" || e.name === "AbortError") return true;
+  const msg = e.message.toLowerCase();
+  return msg.includes("timeout") || msg.includes("aborted");
+}
+
+type ChatAttemptResult =
+  | { kind: "ok"; content: string }
+  | { kind: "timeout" }
+  | { kind: "fail" };
+
 async function grsaiChatCompletionOneModel(
   params: GrsaiChatParams,
   model: string
-): Promise<string | null> {
+): Promise<ChatAttemptResult> {
   const { apiKey, baseUrl } = getChatConfig();
-  if (!apiKey) return null;
+  if (!apiKey) return { kind: "fail" };
 
   const body: Record<string, unknown> = {
     model,
@@ -67,8 +81,12 @@ async function grsaiChatCompletionOneModel(
     body.response_format = { type: "json_object" };
   }
 
-  const timeoutMs = Number(process.env.GRSAI_CHAT_TIMEOUT_MS) || 45_000;
-  console.info(`[grsai-chat] POST ${baseUrl}/v1/chat/completions model=${model}`);
+  const timeoutMs =
+    params.timeoutMs ??
+    (Number(process.env.GRSAI_CHAT_TIMEOUT_MS) || 120_000);
+  console.info(
+    `[grsai-chat] POST ${baseUrl}/v1/chat/completions model=${model} timeoutMs=${timeoutMs}`
+  );
 
   try {
     const res = await fetch(`${baseUrl}/v1/chat/completions`, {
@@ -88,20 +106,26 @@ async function grsaiChatCompletionOneModel(
         res.status,
         errText.slice(0, 200)
       );
-      return null;
+      return { kind: "fail" };
     }
 
     const data = (await res.json()) as {
       choices?: { message?: { content?: string } }[];
     };
     const content = data.choices?.[0]?.message?.content?.trim();
-    return content || null;
+    return content ? { kind: "ok", content } : { kind: "fail" };
   } catch (e) {
+    if (isFetchTimeoutError(e)) {
+      console.warn(
+        `[grsai-chat ${model}] client timeout after ${timeoutMs}ms (GrsAI may still finish and bill; no result received)`
+      );
+      return { kind: "timeout" };
+    }
     console.warn(
       `[grsai-chat ${model}] failed:`,
       e instanceof Error ? e.message : e
     );
-    return null;
+    return { kind: "fail" };
   }
 }
 
@@ -117,8 +141,11 @@ export async function grsaiChatCompletion(
 
   for (let i = 0; i < models.length; i++) {
     const model = models[i];
-    const content = await grsaiChatCompletionOneModel(params, model);
-    if (content) return content;
+    const attempt = await grsaiChatCompletionOneModel(params, model);
+    if (attempt.kind === "ok") return attempt.content;
+    if (attempt.kind === "timeout") {
+      return null;
+    }
     if (i < models.length - 1) {
       console.warn(`[grsai-chat] ${model} unavailable, try ${models[i + 1]}`);
     }
