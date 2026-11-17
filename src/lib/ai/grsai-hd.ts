@@ -1,8 +1,8 @@
 /**
- * 高清 4K 链路（典型：乘丰 key×2 + GrsAI key×1）：
- * 1. 乘丰 GRSAI_IMAGES_API_KEY / _2 分流 POST …/images/generations
- * 2. 失败 → GrsAI POST /v1/api/generate（vip / flare / sunburst，4K 像素）
- * 不降 1K
+ * 高清 4K 链路（默认）：
+ * 1. GrsAI POST /v1/api/generate（GRSAI_API_KEY，vip / flare / sunburst，4K 像素）
+ * 2. 失败 → 乘丰 api.cphone.vip /v1/images/generations（GRSAI_IMAGES_*）
+ * 设 HD_IMAGES_PREFER_FENG=true 可恢复「先乘丰后 GrsAI」。
  */
 
 import {
@@ -18,7 +18,11 @@ export type OutlineHdResult = {
   usedDrawFallback: boolean;
 };
 
-/** 项目设为 hd 时一律走乘丰 4K（含编辑器重设计、上传参考修改） */
+function preferFeng4KFirst(): boolean {
+  return process.env.HD_IMAGES_PREFER_FENG === "true";
+}
+
+/** 项目设为 hd 时走 4K 双通道（含编辑器重设计、上传参考修改） */
 export function isOutlineHdGeneration(options: {
   imageQuality?: string | null;
   isLayoutRemix?: boolean;
@@ -45,41 +49,67 @@ async function runHdImagesChannels(
     referenceUrls: refs,
   };
 
-  try {
-    const fengUrl = await generateWithGrsaiImages(imageParams, {
-      keySlotIndex: fengKeySlotIndex,
-    });
-    if (fengUrl) {
-      return { url: fengUrl, provider: "feng-ai-4k", usedDrawFallback: false };
+  const tryGrsai = async (): Promise<OutlineHdResult | null> => {
+    try {
+      const grsai4k = await generateWithGrsaiPlatformImages(imageParams, {
+        keySlotIndex: fengKeySlotIndex,
+      });
+      if (grsai4k) {
+        return {
+          url: grsai4k,
+          provider: "grsai-generate-4k",
+          usedDrawFallback: false,
+        };
+      }
+      console.warn(`[outline-hd] ${label} GrsAI 4K empty`);
+    } catch (e) {
+      console.warn(
+        `[outline-hd] ${label} GrsAI 4K failed:`,
+        e instanceof Error ? e.message : e
+      );
     }
-    console.warn(`[outline-hd] ${label} Feng empty → GrsAI 4K`);
-  } catch (e) {
-    console.warn(
-      `[outline-hd] ${label} Feng failed → GrsAI 4K:`,
-      e instanceof Error ? e.message : e
-    );
-  }
+    return null;
+  };
 
-  try {
-    const grsai4k = await generateWithGrsaiPlatformImages(imageParams, {
-      keySlotIndex: fengKeySlotIndex,
-    });
-    if (grsai4k) {
-      return {
-        url: grsai4k,
-        provider: "grsai-generate-4k",
-        usedDrawFallback: false,
-      };
+  const tryFeng = async (
+    usedDrawFallback: boolean
+  ): Promise<OutlineHdResult | null> => {
+    try {
+      const fengUrl = await generateWithGrsaiImages(imageParams, {
+        keySlotIndex: fengKeySlotIndex,
+      });
+      if (fengUrl) {
+        return { url: fengUrl, provider: "feng-ai-4k", usedDrawFallback };
+      }
+      console.warn(`[outline-hd] ${label} Feng empty`);
+    } catch (e) {
+      console.warn(
+        `[outline-hd] ${label} Feng failed:`,
+        e instanceof Error ? e.message : e
+      );
     }
-    console.warn(`[outline-hd] ${label} GrsAI 4K empty`);
-  } catch (e) {
-    console.warn(
-      `[outline-hd] ${label} GrsAI 4K failed:`,
-      e instanceof Error ? e.message : e
-    );
-  }
+    return null;
+  };
 
-  return null;
+  const grsaiFirst = !preferFeng4KFirst();
+  const first = grsaiFirst ? tryGrsai : () => tryFeng(false);
+  const second = grsaiFirst
+    ? () => tryFeng(true)
+    : () => tryGrsai().then((r) =>
+        r
+          ? { ...r, usedDrawFallback: true }
+          : null
+      );
+
+  const primary = await first();
+  if (primary?.url) return primary;
+
+  console.warn(
+    `[outline-hd] ${label} ${grsaiFirst ? "GrsAI" : "Feng"} empty → ${
+      grsaiFirst ? "Feng" : "GrsAI"
+    } 4K`
+  );
+  return second();
 }
 
 export async function generateOutlineHdSlide(params: {
@@ -138,8 +168,6 @@ export async function generateOutlineHdSlide(params: {
     }
   }
 
-  console.warn(
-    "[outline-hd] Feng and GrsAI 4K both failed"
-  );
+  console.warn("[outline-hd] GrsAI and Feng 4K both failed");
   return { url: null, provider: "none", usedDrawFallback: false };
 }

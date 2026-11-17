@@ -1,7 +1,7 @@
 /**
  * 4K 出图
- * - 乘丰 Feng：OpenAI 格式 POST /v1/images/generations（GRSAI_IMAGES_*）
- * - GrsAI 回退：POST /v1/api/generate（GRSAI_API_KEY，vip / flare / sunburst）
+ * - GrsAI（默认）：POST /v1/api/generate（GRSAI_API_KEY）
+ * - 乘丰 Feng：/v1/images/generations（GRSAI_IMAGES_*，回退或 HD_IMAGES_PREFER_FENG）
  */
 
 import { fetchFengImages, formatFetchError } from "@/lib/ai/feng-long-fetch";
