@@ -38,7 +38,7 @@ describe("resolveGrsaiImagesConfig", () => {
   it("uses 4K size for 16:9", () => {
     const c = resolveGrsaiImagesConfig("16:9");
     assert.equal(c.size, "3840x2160");
-    assert.equal(c.model, "gpt-image-2-vip");
+    assert.equal(c.model, "gpt-image-2.6-sunburst");
   });
 });
 

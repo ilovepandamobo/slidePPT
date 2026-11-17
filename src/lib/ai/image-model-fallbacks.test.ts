@@ -16,11 +16,17 @@ describe("image model fallback chains", () => {
     else process.env.GRSAI_DRAW_MODEL_FALLBACKS = prevDraw;
   });
 
-  it("hd chain starts with vip and includes 2.5/2.6 sunburst", () => {
+  it("hd default chain prefers 2.6 sunburst at 4K", () => {
+    const chain = getHdImagesModelChain();
+    assert.equal(chain[0], "gpt-image-2.6-sunburst");
+    assert.ok(chain.includes("gpt-image-2.6-flare"));
+    assert.ok(chain.includes("gpt-image-2-vip"));
+  });
+
+  it("honours explicit primary model", () => {
     const chain = getHdImagesModelChain("gpt-image-2-vip");
     assert.equal(chain[0], "gpt-image-2-vip");
-    assert.ok(chain.includes("gpt-image-2.5-sunburst"));
-    assert.ok(chain.includes("gpt-image-2.6-flare"));
+    assert.ok(chain.includes("gpt-image-2.6-sunburst"));
   });
 
   it("standard chain includes gpt-image-2.5 and gpt-image-2.6", () => {

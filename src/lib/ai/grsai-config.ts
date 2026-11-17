@@ -54,10 +54,10 @@ export function resolveGrsaiDrawConfig(
 
   if (imageQuality === "hd") {
     return {
-      model: "gpt-image-2-vip",
+      model: process.env.GRSAI_IMAGES_MODEL?.trim() || "gpt-image-2.6-sunburst",
       aspectRatio: vip4kPixelsForRatio(ratio),
       imageQuality: "hd",
-      label: "GPT Image 2 · 4K",
+      label: "GPT Image 2.6 · 4K",
     };
   }
 
@@ -79,7 +79,7 @@ export function resolveGrsaiImagesConfig(
   const model =
     envModel && envModel !== "gpt-image-2"
       ? envModel
-      : "gpt-image-2-vip";
+      : "gpt-image-2.6-sunburst";
   return {
     model,
     size: vip4kPixelsForRatio(ratio),

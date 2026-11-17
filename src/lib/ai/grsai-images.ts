@@ -112,19 +112,20 @@ async function postImagesGenerations(
   params: GrsaiImagesParams
 ): Promise<string | null> {
   const { apiKey, baseUrl, logTag } = config;
-  if (!apiKey || !params.referenceUrls.length) return null;
+  if (!apiKey) return null;
 
   const timeoutMs = Number(process.env.GRSAI_IMAGES_TIMEOUT_MS) || 540_000;
 
   const imageUrls = formatImagesApiUrls(params.referenceUrls);
-  const body = {
-    model: params.model || "gpt-image-2-vip",
+  const body: Record<string, unknown> = {
+    model: params.model || "gpt-image-2.6-sunburst",
     prompt: params.prompt.slice(0, FENG_IMAGES_PROMPT_MAX),
     size: params.size,
     quality: params.quality ?? FENG_4K_DEFAULT_QUALITY,
     response_format: "url",
-    image: imageUrls,
+    n: 1,
   };
+  if (imageUrls.length) body.image = imageUrls;
 
   const payloadKb = Math.round(
     Buffer.byteLength(JSON.stringify(body), "utf8") / 1024
@@ -162,12 +163,16 @@ async function postImagesGenerations(
     return null;
   }
 
+  const errMsg = json.error?.message || json.msg;
+  const errCode = json.error?.code;
+
   if (!res.ok) {
-    console.error(
-      `[${logTag}] HTTP`,
-      res.status,
-      json.error?.message || json.msg || text.slice(0, 200)
-    );
+    console.error(`[${logTag}] HTTP`, res.status, errCode || "", errMsg || text.slice(0, 200));
+    if (errMsg?.includes("无可用渠道") || errCode === "model_not_found") {
+      console.error(
+        `[${logTag}] 模型在当前令牌分组不可用，请在乘丰控制台换分组或改 GRSAI_IMAGES_MODEL`
+      );
+    }
     return null;
   }
 

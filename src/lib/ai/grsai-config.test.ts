@@ -9,9 +9,9 @@ describe("resolveGrsaiDrawConfig", () => {
     assert.equal(c.aspectRatio, "1672x941");
   });
 
-  it("hd uses vip 4K for 16:9", () => {
+  it("hd uses 2.6 sunburst 4K for 16:9", () => {
     const c = resolveGrsaiDrawConfig("16:9", "hd");
-    assert.equal(c.model, "gpt-image-2-vip");
+    assert.equal(c.model, "gpt-image-2.6-sunburst");
     assert.equal(c.aspectRatio, "3840x2160");
   });
 
