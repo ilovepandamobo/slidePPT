@@ -19,7 +19,7 @@ async function suggest(forceNormalize) {
       forceNormalize,
       autoSplit: false,
     }),
-    signal: AbortSignal.timeout(320_000),
+    signal: AbortSignal.timeout(600_000),
   });
   const data = await res.json();
   return { ok: res.ok, status: res.status, ms: Date.now() - t0, data };

@@ -112,8 +112,11 @@ const CHUNK_PAGES =
   Number(process.env.OUTLINE_LLM_CHUNK_PAGES) || 5;
 const CHUNK_CONCURRENCY = Math.max(
   1,
-  Math.min(3, Number(process.env.OUTLINE_LLM_CHUNK_CONCURRENCY) || 2)
+  Math.min(8, Number(process.env.OUTLINE_LLM_CHUNK_CONCURRENCY) || 6)
 );
+
+const CHUNK_LLM_TIMEOUT_MS =
+  Number(process.env.GRSAI_CHAT_CHUNK_TIMEOUT_MS) || 150_000;
 
 export type NormalizeLlmOptions = {
   /** 长稿按页界分块，每块仍用完整结构化 prompt（与单次识别指令相同） */
@@ -142,7 +145,8 @@ function outlineLlmMaxTokens(raw: string): number {
 
 async function callNormalizeLlm(
   userContent: string,
-  rawForTokens: string
+  rawForTokens: string,
+  timeoutMs = OUTLINE_LLM_TIMEOUT_MS
 ): Promise<string | null> {
   const model = getOutlineChatModel();
   return grsaiChatCompletion({
@@ -154,7 +158,7 @@ async function callNormalizeLlm(
     jsonMode: true,
     maxTokens: outlineLlmMaxTokens(rawForTokens),
     temperature: 0,
-    timeoutMs: OUTLINE_LLM_TIMEOUT_MS,
+    timeoutMs,
   });
 }
 
@@ -197,11 +201,12 @@ function finishOk(
 
 async function normalizeOutlineSinglePass(
   trimmed: string,
-  buildUser: (text: string) => string = buildOutlineNormalizeUserPrompt
+  buildUser: (text: string) => string = buildOutlineNormalizeUserPrompt,
+  timeoutMs = OUTLINE_LLM_TIMEOUT_MS
 ): Promise<LlmNormalizeOutcome> {
   let chatCalls = 0;
 
-  let content = await callNormalizeLlm(buildUser(trimmed), trimmed);
+  let content = await callNormalizeLlm(buildUser(trimmed), trimmed, timeoutMs);
   chatCalls++;
   if (!content) {
     return {
@@ -247,7 +252,8 @@ async function normalizeOutlineSinglePass(
     console.warn("[outline-llm] validate errors, retry once:", errors.join(","));
     content = await callNormalizeLlm(
       buildOutlineNormalizeRetryPrompt(trimmed, errors),
-      trimmed
+      trimmed,
+      timeoutMs
     );
     chatCalls++;
     if (!content) {
@@ -318,8 +324,9 @@ async function normalizeOutlineChunked(
   let presentationTitle = "";
   const warnings: string[] = ["llm_chunked", `chunks:${chunkSpecs.length}`];
 
-  for (let c = 0; c < chunkSpecs.length; c += CHUNK_CONCURRENCY) {
-    const batch = chunkSpecs.slice(c, c + CHUNK_CONCURRENCY);
+  const waveSize = Math.min(CHUNK_CONCURRENCY, chunkSpecs.length);
+  for (let c = 0; c < chunkSpecs.length; c += waveSize) {
+    const batch = chunkSpecs.slice(c, c + waveSize);
     const batchResults = await Promise.all(
       batch.map(async (spec) => {
         const user = buildOutlineNormalizeChunkUserPrompt(spec.text, {
@@ -327,7 +334,11 @@ async function normalizeOutlineChunked(
           globalEnd: spec.end,
           totalPages,
         });
-        return normalizeOutlineSinglePass(spec.text, () => user);
+        return normalizeOutlineSinglePass(
+          spec.text,
+          () => user,
+          CHUNK_LLM_TIMEOUT_MS
+        );
       })
     );
 
