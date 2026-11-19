@@ -66,7 +66,10 @@ export function scoreOutlineConfidence(
     score -= 0.35;
   }
 
+  const explicitForShort =
+    hasExplicitPageMarkers(raw) && countExplicitPageMarkers(raw) === pages.length;
   if (
+    !explicitForShort &&
     pages.length > 3 &&
     pages.some((p) => p.content.trim().length < 20 && !p.notes?.trim())
   ) {
@@ -121,11 +124,7 @@ export function shouldUseLlmNormalize(
 
   if (hasExplicitPageMarkers(raw)) {
     const expected = countExplicitPageMarkers(raw);
-    if (
-      expected > 0 &&
-      expected === pages.length &&
-      confidence.score >= minConfidence
-    ) {
+    if (expected > 0 && expected === pages.length) {
       return false;
     }
     if (expected > 0 && expected !== pages.length) return true;
