@@ -75,6 +75,7 @@ function CreateWizard() {
   const [resolveConfidence, setResolveConfidence] = useState<number | null>(
     null
   );
+  const [outlineResolving, setOutlineResolving] = useState(false);
 
   useEffect(() => {
     const styleId = searchParams.get("style");
@@ -85,17 +86,27 @@ function CreateWizard() {
   }, [searchParams]);
 
   async function suggestOutline(forceNormalize = false) {
+    const raw = outline.trim();
+    if (!raw) {
+      setError("大纲正文为空，请点击「修改大纲」粘贴内容后再识别");
+      return;
+    }
+    if (outlineResolving) return;
+
+    setOutlineResolving(true);
     setLoadingMode("outline");
     setLoading(true);
-    const previewPages = parseOutline(outline);
-    const previewConf = scoreOutlineConfidence(outline, previewPages);
+    const previewPages = parseOutline(raw);
+    const previewConf = scoreOutlineConfidence(raw, previewPages);
     const useAiFirst =
       forceNormalize ||
-      isSuspiciousRuleSplit(outline, previewPages, previewConf.reasons) ||
-      shouldUseLlmNormalize(outline, previewPages, previewConf);
-    setGenProgress(
+      isSuspiciousRuleSplit(raw, previewPages, previewConf.reasons) ||
+      shouldUseLlmNormalize(raw, previewPages, previewConf);
+  setGenProgress(
       forceNormalize
-        ? "复杂格式，正在 AI 结构化识别（约 30 秒–3 分钟）…"
+        ? previewPages.length >= 8 && hasExplicitPageMarkers(raw)
+          ? `正在 AI 精炼标题与页型（${previewPages.length} 页，约 30–90 秒）…`
+          : "复杂格式，正在 AI 结构化识别（约 30 秒–3 分钟）…"
         : useAiFirst
           ? "正在识别大纲（长稿可能调用 AI 辅助）…"
           : "规则快速识别中…"
@@ -111,8 +122,8 @@ function CreateWizard() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          outline,
-          autoSplit: !hasExplicitPageMarkers(outline),
+          outline: raw,
+          autoSplit: !hasExplicitPageMarkers(raw),
           /** 仅「用 AI 重新识别」为 true；勿与 useAiFirst 混用，否则会强制 LLM 并在超时后 0 页 */
           forceNormalize: forceNormalize,
         }),
@@ -138,7 +149,7 @@ function CreateWizard() {
       if (data.suggestedTitle && !title.trim()) {
         setTitle(data.suggestedTitle);
       }
-      setStep(2);
+      if (step !== 2) setStep(2);
     } catch (e) {
       const msg =
         e instanceof Error && e.name === "TimeoutError"
@@ -149,6 +160,7 @@ function CreateWizard() {
       setError(msg);
     } finally {
       setLoading(false);
+      setOutlineResolving(false);
       setGenProgress("");
     }
   }
@@ -537,14 +549,16 @@ Page 1: Cover  /  【第1页】封面
                     {resolveSource === "llm" ? "AI 识别" : "规则识别"}
                   </span>
                 )}
-                {resolveSource === "rules" && (
+                {(resolveSource === "rules" || resolveSource === "llm") && (
                   <button
                     type="button"
                     onClick={() => void suggestOutline(true)}
-                    disabled={loading}
+                    disabled={loading || outlineResolving}
                     className="text-xs text-violet-400 hover:text-violet-300 disabled:opacity-50"
                   >
-                    用 AI 重新识别
+                    {outlineResolving
+                      ? "AI 识别中…"
+                      : "用 AI 重新识别"}
                   </button>
                 )}
               </div>

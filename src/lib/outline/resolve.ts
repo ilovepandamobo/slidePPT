@@ -10,6 +10,7 @@ import {
   isSuspiciousRuleSplit,
 } from "@/lib/outline/confidence";
 import { normalizeOutlineWithLlm } from "@/lib/outline/llm-normalize";
+import { refineRulePagesWithLlm } from "@/lib/outline/llm-refine";
 import type { OutlinePage } from "@/types";
 
 export type OutlineResolveSource = "rules" | "llm";
@@ -75,7 +76,24 @@ export async function resolveOutline(
         reasons
       );
     }
-    const llm = await normalizeOutlineWithLlm(outlineRaw);
+    const explicit = countExplicitPageMarkers(outlineRaw);
+    const useRuleRefine =
+      Boolean(options?.forceLlm) &&
+      rulePages.length >= 8 &&
+      explicit >= 2 &&
+      explicit === rulePages.length;
+
+    if (options?.forceLlm) {
+      console.info("[resolveOutline] force LLM", {
+        rulePages: rulePages.length,
+        explicit,
+        useRuleRefine,
+      });
+    }
+
+    const llm = useRuleRefine
+      ? await refineRulePagesWithLlm(outlineRaw, rulePages)
+      : await normalizeOutlineWithLlm(outlineRaw);
     if (llm.ok && llm.data.pages.length > 0) {
       return {
         pages: llm.data.pages,

@@ -18,8 +18,17 @@ const schema = z.object({
 export async function POST(req: Request) {
   try {
     const body = schema.parse(await req.json());
+    console.info("[outline/suggest] start", {
+      forceNormalize: Boolean(body.forceNormalize),
+      len: body.outline.length,
+    });
     const resolved = await resolveOutline(body.outline, {
       forceLlm: body.forceNormalize,
+    });
+    console.info("[outline/suggest] done", {
+      source: resolved.source,
+      pages: resolved.pages.length,
+      llmFailed: resolved.llmFailed,
     });
 
     if (resolved.pages.length === 0) {

@@ -37,6 +37,36 @@ ${raw}
 ---`;
 }
 
+export const OUTLINE_REFINE_SYSTEM_PROMPT = `你是 PPT 大纲校对器。规则引擎已按用户页码拆好每页正文。
+
+任务：根据每页摘要，只做三件事：
+1. 校正 slide 标题（优先用户原标题，不要编造）
+2. 校正 pageType（cover/toc/section/content/data/image/ending/qa）
+3. 可选：把明显属于「配图/排版」的句子提到 notes
+
+禁止改写或删减正文 content。只输出 JSON：
+{
+  "presentationTitle": string,
+  "pages": [
+    { "pageIndex": number, "pageType": string, "title": string, "notes": string }
+  ]
+}
+页数必须与输入页数一致。不要输出 content 字段。`;
+
+export function buildRuleRefineUserPrompt(
+  raw: string,
+  rulePages: { title: string; pageType: string; content: string; notes?: string }[]
+): string {
+  const blocks = rulePages
+    .map((p, i) => {
+      const body = [p.content, p.notes].filter(Boolean).join("\n");
+      const excerpt = body.slice(0, 1500);
+      return `## 页 ${i + 1}\n规则标题: ${p.title}\n规则类型: ${p.pageType}\n正文摘录:\n${excerpt}${body.length > 1500 ? "\n…" : ""}`;
+    })
+    .join("\n\n");
+  return `演示文稿总标题线索（取自文首）：${raw.split("\n").find((l) => l.trim())?.replace(/^#+\s*/, "") || "未命名"}\n共 ${rulePages.length} 页。\n\n${blocks}`;
+}
+
 export function buildOutlineNormalizeRetryPrompt(
   raw: string,
   errors: string[]

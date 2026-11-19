@@ -91,6 +91,19 @@ async function main() {
   } else {
     console.log("\nAll production outline tests passed.");
   }
+
+  const pages8 = Array.from({ length: 8 }, (_, i) => {
+    const n = String(i + 1).padStart(2, "0");
+    return `### ${n}　页${i + 1}｜标题\n- 内容 ${i + 1}`;
+  }).join("\n\n");
+  const REFINE_BRIEF = `# 八页测试\n\n${pages8}`;
+  console.log("\n=== AI refine (8x ### 01), forceNormalize=true ===");
+  const refine = await suggest(REFINE_BRIEF, true);
+  console.log("status", refine.status, "ms", refine.ms, "source", refine.data.source);
+  if (!refine.ok || refine.data.source !== "llm" || refine.ms > 120_000) {
+    process.exitCode = 1;
+    console.error("REFINE TEST FAILED", refine.data);
+  }
 }
 
 main().catch((e) => {

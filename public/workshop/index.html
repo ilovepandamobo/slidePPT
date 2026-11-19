@@ -1,0 +1,1286 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="theme-color" content="#090a0e" />
+<title>JoinSpark AI 视频导演 101 · 分公司 10 组</title>
+<meta name="description" content="JoinSpark AI 视频导演 101 分公司培训。10 组实战：每人一张海报、一条 15 秒视频。" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #090a0e;
+    --bg-2: #10131a;
+    --card: #141820;
+    --card-2: #1b202b;
+    --cream: #f6f2e9;
+    --text: #f3efe6;
+    --muted: #d2cdc2;
+    --label: #b7b1a4;
+    --gold: #e4c48a;
+    --gold-2: #f3ddb0;
+    --line: rgba(243, 239, 230, 0.12);
+    --line-strong: rgba(228, 196, 138, 0.45);
+    --ice: #b9dcff;
+    --coral: #f0b09a;
+    --mint: #b7e7d4;
+    --shadow: 0 24px 70px rgba(0, 0, 0, 0.35);
+    --nav: 68px;
+    --sans: "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+    --display: Syne, "PingFang SC", "Hiragino Sans GB", sans-serif;
+    --measure: 44rem;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 17px;
+    line-height: 1.8;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection { background: rgba(228, 196, 138, 0.35); color: #fff; }
+  :focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
+  a { color: var(--gold-2); text-underline-offset: 3px; }
+  button, input { font-family: inherit; }
+
+  .topnav {
+    position: fixed;
+    inset: 0 0 auto 0;
+    z-index: 40;
+    height: var(--nav);
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 0 22px;
+    background: rgba(9, 10, 14, 0.82);
+    border-bottom: 1px solid var(--line);
+    backdrop-filter: blur(16px);
+  }
+  .brand {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    text-decoration: none;
+    color: var(--cream);
+    flex: none;
+  }
+  .brand b {
+    font-family: var(--display);
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    font-size: 14px;
+  }
+  .brand span {
+    color: var(--gold);
+    font-size: 12px;
+    letter-spacing: 0.16em;
+  }
+  .navlinks {
+    display: flex;
+    gap: 4px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .navlinks::-webkit-scrollbar { display: none; }
+  .navlinks a {
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 14px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+  .navlinks a:hover,
+  .navlinks a.active { color: var(--bg); background: var(--gold); }
+  .navmeta {
+    margin-left: auto;
+    color: var(--gold);
+    font-family: var(--display);
+    letter-spacing: 0.14em;
+    font-size: 12px;
+    flex: none;
+  }
+
+  .hero {
+    position: relative;
+    margin-top: var(--nav);
+    padding: 64px 28px 36px;
+    overflow: hidden;
+    background:
+      radial-gradient(900px 420px at 8% 0%, rgba(228, 196, 138, 0.18), transparent 58%),
+      radial-gradient(640px 360px at 100% 20%, rgba(120, 170, 210, 0.12), transparent 55%),
+      var(--bg);
+  }
+  .hero-mark {
+    position: absolute;
+    left: 28px;
+    top: 96px;
+    z-index: 0;
+    font-family: var(--display);
+    font-size: 200px;
+    line-height: 0.8;
+    letter-spacing: -0.08em;
+    color: rgba(228, 196, 138, 0.09);
+    pointer-events: none;
+    user-select: none;
+  }
+  .frame { position: absolute; inset: 22px; pointer-events: none; }
+  .frame i { position: absolute; width: 34px; height: 34px; border: 1.5px solid rgba(228, 196, 138, 0.75); }
+  .frame i:nth-child(1) { top: 0; left: 0; border-right: 0; border-bottom: 0; }
+  .frame i:nth-child(2) { top: 0; right: 0; border-left: 0; border-bottom: 0; }
+  .frame i:nth-child(3) { bottom: 0; left: 0; border-right: 0; border-top: 0; }
+  .frame i:nth-child(4) { bottom: 0; right: 0; border-left: 0; border-top: 0; }
+  .hero-inner {
+    width: min(1180px, 100%);
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1.35fr 0.8fr;
+    gap: 48px;
+    align-items: center;
+    position: relative;
+  }
+  .kicker {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--gold);
+    letter-spacing: 0.18em;
+    font-size: 12px;
+    font-family: var(--display);
+    margin: 0 0 18px;
+  }
+  .rec {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #e25b4a;
+    box-shadow: 0 0 0 0 rgba(226, 91, 74, 0.7);
+    animation: pulse 1.8s infinite;
+  }
+  @keyframes pulse {
+    70% { box-shadow: 0 0 0 8px rgba(226, 91, 74, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(226, 91, 74, 0); }
+  }
+  h1 {
+    margin: 0;
+    font-size: clamp(44px, 5.4vw, 84px);
+    line-height: 1.08;
+    font-weight: 650;
+    letter-spacing: -0.03em;
+    color: var(--cream);
+    text-shadow: 0 0 42px rgba(228, 196, 138, 0.16);
+  }
+  .hero-sub {
+    margin: 18px 0 0;
+    font-size: clamp(18px, 2vw, 22px);
+    color: var(--gold-2);
+    line-height: 1.55;
+  }
+  .hero-lead {
+    max-width: 40rem;
+    margin: 18px 0 0;
+    color: var(--muted);
+    font-size: 17px;
+  }
+  .hero-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 46px;
+    padding: 0 18px;
+    border-radius: 999px;
+    text-decoration: none;
+    border: 1px solid var(--line-strong);
+    color: var(--cream);
+    background: transparent;
+    cursor: pointer;
+    font-size: 15px;
+  }
+  .btn.primary { background: var(--gold); color: #1a140c; border-color: var(--gold); font-weight: 650; }
+  .btn:hover { transform: translateY(-1px); }
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 34px;
+    max-width: 640px;
+  }
+  .stat {
+    padding: 12px 12px 10px;
+    border-top: 1px solid var(--line-strong);
+  }
+  .stat b {
+    display: block;
+    font-family: var(--display);
+    font-size: 26px;
+    letter-spacing: 0.04em;
+    color: var(--cream);
+    line-height: 1.1;
+  }
+  .stat span { display: block; margin-top: 4px; color: var(--label); font-size: 13px; line-height: 1.4; }
+
+  .slate {
+    background: linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.015));
+    border: 1px solid var(--line-strong);
+    border-radius: 18px;
+    box-shadow: var(--shadow);
+    padding: 22px 22px 18px;
+  }
+  .slate-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    color: var(--gold);
+    font-family: var(--display);
+    letter-spacing: 0.14em;
+    font-size: 12px;
+    margin-bottom: 8px;
+  }
+  .slate-top span { white-space: nowrap; }
+  .slate h2 {
+    margin: 0 0 14px;
+    font-size: 28px;
+    line-height: 1.25;
+    font-weight: 650;
+  }
+  .slate dl { margin: 0; }
+  .slate dl > div {
+    display: grid;
+    grid-template-columns: 72px 1fr;
+    gap: 10px;
+    padding: 9px 0;
+    border-top: 1px solid var(--line);
+    font-size: 15px;
+  }
+  .slate dt { color: var(--label); }
+  .slate dd { margin: 0; color: var(--cream); }
+  .lineup-wrap {
+    width: min(1180px, 100%);
+    margin: 36px auto 0;
+    position: relative;
+    z-index: 1;
+  }
+  .lineup-label {
+    margin: 0 0 12px;
+    color: var(--gold);
+    font-family: var(--display);
+    letter-spacing: 0.16em;
+    font-size: 12px;
+  }
+  .lineup {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+    gap: 8px;
+  }
+  .shot {
+    text-align: left;
+    min-height: 96px;
+    padding: 12px 12px 14px;
+    border-radius: 14px;
+    border: 1px solid var(--line);
+    background: rgba(16, 19, 26, 0.72);
+    color: var(--cream);
+    cursor: pointer;
+  }
+  .shot:hover { border-color: var(--tone, var(--gold)); background: rgba(228, 196, 138, 0.06); }
+  .shot .no {
+    font-family: var(--display);
+    color: var(--tone, var(--gold));
+    font-size: 12px;
+    letter-spacing: 0.08em;
+  }
+  .shot .ttl {
+    display: block;
+    margin-top: 6px;
+    font-size: 15px;
+    line-height: 1.45;
+    font-weight: 650;
+  }
+
+  main { width: min(1180px, calc(100% - 40px)); margin: 0 auto; }
+  section { padding: 78px 0; border-top: 1px solid var(--line); scroll-margin-top: 84px; }
+  .sec-label {
+    margin: 0 0 8px;
+    color: var(--gold);
+    font-family: var(--display);
+    letter-spacing: 0.18em;
+    font-size: 12px;
+  }
+  h2.sec {
+    margin: 0;
+    font-size: clamp(30px, 3vw, 42px);
+    line-height: 1.2;
+    font-weight: 650;
+    letter-spacing: -0.02em;
+  }
+  .sec-intro { max-width: var(--measure); color: var(--muted); margin: 12px 0 0; }
+  .origin {
+    display: inline-block;
+    margin-top: 14px;
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    color: var(--label);
+  }
+
+  .steps {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin-top: 28px;
+  }
+  .step, .card, .rule, .brief, .q, .note, .score-item {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+  }
+  .step { padding: 20px 20px 18px; }
+  .step em {
+    font-style: normal;
+    font-family: var(--display);
+    color: var(--gold);
+    letter-spacing: 0.12em;
+    font-size: 13px;
+  }
+  .step h3 { margin: 8px 0; font-size: 20px; font-weight: 650; }
+  .step p { margin: 0; color: var(--muted); font-size: 15.5px; }
+
+  .principle-grid { display: grid; gap: 14px; margin-top: 26px; }
+  .card { padding: 22px 24px; }
+  .card .idx {
+    font-family: var(--display);
+    color: var(--gold);
+    letter-spacing: 0.12em;
+    font-size: 13px;
+  }
+  .card p { margin: 8px 0 0; max-width: 52rem; }
+
+  .rule-block { margin-top: 34px; }
+  .rule-block h3 {
+    margin: 0 0 6px;
+    font-size: 26px;
+    font-weight: 650;
+  }
+  .rule-block .hint { margin: 0 0 14px; color: var(--label); font-size: 14px; }
+  .rules { display: grid; gap: 10px; }
+  .rule {
+    display: grid;
+    grid-template-columns: 72px 1fr;
+    gap: 8px 18px;
+    padding: 16px 18px;
+  }
+  .rule .no {
+    font-family: var(--display);
+    font-size: 22px;
+    color: var(--gold);
+    letter-spacing: 0.04em;
+    line-height: 1.2;
+  }
+  .rule .name { color: var(--gold-2); font-size: 14px; margin-bottom: 4px; }
+  .rule p { margin: 0; max-width: 48rem; }
+
+  .free {
+    margin-top: 14px;
+    padding: 22px 24px;
+    border-radius: 16px;
+    border: 1px dashed var(--line-strong);
+    background: rgba(228, 196, 138, 0.04);
+  }
+  .free h3 { margin: 0 0 8px; font-size: 22px; }
+  .free p { margin: 8px 0 0; max-width: 50rem; }
+
+  .questions { display: grid; gap: 10px; margin-top: 22px; }
+  .q {
+    display: grid;
+    grid-template-columns: 64px 1fr;
+    gap: 8px;
+    align-items: center;
+    padding: 16px 18px;
+  }
+  .q b {
+    font-family: var(--display);
+    color: var(--gold);
+    font-size: 20px;
+  }
+  .q p { margin: 0; font-size: 18px; }
+  .note { margin-top: 14px; padding: 18px 20px; max-width: 52rem; }
+  .note p { margin: 0; }
+
+  .table-wrap { margin-top: 22px; overflow-x: auto; border: 1px solid var(--line); border-radius: 16px; }
+  table { width: 100%; border-collapse: collapse; min-width: 720px; }
+  th, td { text-align: left; padding: 14px 16px; vertical-align: top; border-bottom: 1px solid var(--line); font-size: 15.5px; }
+  th { color: var(--gold); font-weight: 650; background: #171b23; }
+  td.mono { font-family: var(--display); letter-spacing: 0.04em; color: var(--gold-2); white-space: nowrap; }
+  .supp { margin-top: 16px; display: grid; gap: 10px; }
+  .supp article {
+    padding: 14px 16px;
+    border-radius: 12px;
+    background: var(--bg-2);
+    border: 1px solid var(--line);
+  }
+  .supp strong { color: var(--gold-2); }
+
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    margin-top: 22px;
+    position: sticky;
+    top: var(--nav);
+    z-index: 20;
+    padding: 10px 0;
+    background: linear-gradient(var(--bg), var(--bg) 70%, rgba(9,10,14,0));
+  }
+  .filters { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip, .mode {
+    min-height: 40px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: var(--card);
+    color: var(--muted);
+    padding: 0 14px;
+    cursor: pointer;
+    font-size: 14px;
+  }
+  .chip[aria-pressed="true"] { background: var(--gold); color: #1a140c; border-color: var(--gold); font-weight: 650; }
+  .search {
+    flex: 1 1 220px;
+    min-height: 42px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: var(--card);
+    color: var(--cream);
+    padding: 0 16px;
+    font-size: 16px;
+  }
+  .count { margin: 0; color: var(--label); font-size: 14px; }
+
+  .workspace {
+    margin-top: 8px;
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    gap: 18px;
+    align-items: start;
+  }
+  .glist {
+    position: sticky;
+    top: calc(var(--nav) + 62px);
+    max-height: calc(100svh - var(--nav) - 86px);
+    overflow: auto;
+    padding-right: 4px;
+    display: grid;
+    gap: 6px;
+    align-content: start;
+  }
+  .gbtn {
+    width: 100%;
+    text-align: left;
+    display: grid;
+    grid-template-columns: 42px 1fr;
+    gap: 8px;
+    padding: 10px 10px;
+    border-radius: 12px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+  }
+  .gbtn:hover { background: rgba(255,255,255,0.03); }
+  .gbtn[aria-selected="true"] {
+    background: var(--card);
+    border-color: var(--line);
+    box-shadow: inset 2px 0 0 var(--tone, var(--gold));
+  }
+  .gbtn .num {
+    font-family: var(--display);
+    color: var(--tone, var(--gold));
+    font-size: 16px;
+    padding-top: 2px;
+  }
+  .gbtn .t { display: block; font-size: 15px; line-height: 1.45; }
+  .gbtn .s { display: block; color: var(--label); font-size: 12.5px; line-height: 1.4; margin-top: 2px; }
+  .gstage { min-width: 0; }
+  .workspace.all {
+    grid-template-columns: 1fr;
+  }
+  .workspace.all .glist { display: none; }
+
+  .brief {
+    padding: 26px 26px 22px;
+    border-top: 3px solid var(--tone, var(--gold));
+    animation: rise 0.35s ease;
+    scroll-margin-top: 160px;
+  }
+  .workspace.all .brief { margin-bottom: 16px; }
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: none; }
+  }
+  .brief h3 {
+    margin: 10px 0 0;
+    font-size: clamp(26px, 3vw, 36px);
+    line-height: 1.28;
+    font-weight: 650;
+    letter-spacing: -0.02em;
+  }
+  .pillrow { display: flex; flex-wrap: wrap; gap: 8px; }
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    min-height: 28px;
+    padding: 0 10px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    color: var(--tone, var(--gold));
+    font-size: 13px;
+  }
+  .block { margin-top: 22px; }
+  .block h4 {
+    margin: 0 0 8px;
+    font-size: 14px;
+    letter-spacing: 0.12em;
+    color: var(--gold);
+    font-weight: 650;
+  }
+  .block p { margin: 0; max-width: 48rem; }
+  .block ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; max-width: 48rem; }
+  .block li {
+    position: relative;
+    padding: 10px 12px 10px 16px;
+    background: rgba(255,255,255,0.025);
+    border-radius: 10px;
+    border-left: 2px solid var(--tone, var(--gold));
+  }
+  .specgrid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .specgrid span {
+    display: block;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: rgba(228, 196, 138, 0.06);
+    border: 1px solid var(--line);
+    font-size: 14.5px;
+    line-height: 1.55;
+    color: var(--cream);
+  }
+  .original {
+    margin-top: 10px;
+    color: var(--muted);
+    font-size: 15.5px;
+  }
+  .tag {
+    display: inline-block;
+    margin-right: 4px;
+    padding: 0 6px;
+    border-radius: 6px;
+    background: rgba(228, 196, 138, 0.14);
+    color: var(--gold-2);
+    font-style: normal;
+  }
+  .done {
+    padding: 14px 16px;
+    border-radius: 12px;
+    background: rgba(183, 231, 212, 0.08);
+    border: 1px solid rgba(183, 231, 212, 0.28);
+  }
+  .done h4 { color: var(--mint); }
+  .prep {
+    padding: 14px 16px;
+    border-radius: 12px;
+    background: rgba(185, 220, 255, 0.06);
+    border: 1px solid rgba(185, 220, 255, 0.22);
+  }
+  .prep h4 { color: var(--ice); }
+  .jump { font-size: 14.5px; }
+  .empty { color: var(--muted); padding: 24px; }
+
+  .score-top {
+    display: grid;
+    grid-template-columns: 180px 1fr;
+    gap: 22px;
+    align-items: center;
+    margin-top: 22px;
+  }
+  .total {
+    font-family: var(--display);
+    font-size: 84px;
+    line-height: 0.9;
+    color: var(--gold-2);
+    letter-spacing: -0.04em;
+  }
+  .total small { display: block; margin-top: 8px; font-size: 14px; letter-spacing: 0.14em; color: var(--gold); }
+  .bar { display: flex; height: 14px; border-radius: 999px; overflow: hidden; background: #222; }
+  .bar i:nth-child(1) { flex: 25; background: #e4c48a; }
+  .bar i:nth-child(2) { flex: 25; background: #f0b09a; }
+  .bar i:nth-child(3) { flex: 20; background: #b9dcff; }
+  .bar i:nth-child(4) { flex: 20; background: #b7e7d4; }
+  .bar i:nth-child(5) { flex: 10; background: #d9d3ea; }
+  .scores { display: grid; gap: 10px; margin-top: 16px; }
+  .score-item { display: grid; grid-template-columns: 72px 1fr; gap: 8px; padding: 14px 16px; }
+  .score-item b { font-family: var(--display); font-size: 28px; color: var(--gold); line-height: 1; }
+  .score-item strong { display: block; font-size: 17px; }
+  .score-item p { margin: 4px 0 0; color: var(--muted); }
+  .deliver { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0; }
+  .deliver span {
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: var(--card-2);
+    border: 1px solid var(--line);
+    font-size: 14px;
+  }
+
+  .mat-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin-top: 28px;
+  }
+  .mat {
+    display: flex;
+    flex-direction: column;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    overflow: hidden;
+    min-width: 0;
+  }
+  .mat .shotbox {
+    background: #f6f2e9;
+    aspect-ratio: 1;
+    display: grid;
+  }
+  .mat.portrait .shotbox { aspect-ratio: 9 / 14; }
+  .mat.wide .shotbox { aspect-ratio: 3 / 2; }
+  .mat img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+  .mat .body {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 14px 14px 16px;
+    flex: 1;
+  }
+  .mat .code {
+    font-family: var(--display);
+    color: var(--gold);
+    letter-spacing: 0.12em;
+    font-size: 12px;
+  }
+  .mat h3 { margin: 0; font-size: 18px; font-weight: 650; line-height: 1.35; }
+  .mat .who { margin: 0; color: var(--gold-2); font-size: 13.5px; }
+  .mat p { margin: 0; color: var(--muted); font-size: 14.5px; line-height: 1.65; }
+  .mat .actions { display: flex; gap: 8px; margin-top: 10px; }
+  .mat .actions a {
+    flex: 1;
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    text-decoration: none;
+    font-size: 14px;
+    border: 1px solid var(--line-strong);
+    color: var(--cream);
+  }
+  .mat .actions a.primary {
+    background: var(--gold);
+    color: #1a140c;
+    border-color: var(--gold);
+    font-weight: 650;
+  }
+  .mat.wait { background: transparent; border-style: dashed; }
+  .mat.wide { grid-column: span 2; }
+  .sheet {
+    margin: 8px 0 0;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: #0d1016;
+    border: 1px solid var(--line);
+    color: var(--muted);
+    font-family: var(--sans);
+    font-size: 13.5px;
+    line-height: 1.65;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  button.copy {
+    margin-top: 8px;
+    min-height: 36px;
+    padding: 0 14px;
+    border-radius: 999px;
+    border: 1px solid var(--line-strong);
+    background: transparent;
+    color: var(--gold-2);
+    cursor: pointer;
+    font-size: 13.5px;
+  }
+  button.copy.done { background: var(--gold); color: #1a140c; border-color: var(--gold); }
+
+  footer {
+    border-top: 1px solid var(--line);
+    padding: 28px 0 48px;
+    color: var(--label);
+    font-size: 14px;
+  }
+  footer p { margin: 0; max-width: 50rem; }
+
+  @media (max-width: 1680px) {
+    .hero-mark { display: none; }
+  }
+  @media (min-width: 1400px) {
+    body::before, body::after {
+      content: "";
+      position: fixed;
+      top: 0;
+      bottom: 0;
+      width: 22px;
+      z-index: 35;
+      pointer-events: none;
+      background:
+        radial-gradient(circle at 50% 18px, rgba(228, 196, 138, 0.55) 3px, transparent 4px) 0 0 / 22px 32px;
+      opacity: 0.55;
+    }
+    body::before { left: 14px; }
+    body::after { right: 14px; }
+  }
+  .names { display: flex; flex-wrap: wrap; gap: 8px; }
+  .names span {
+    padding: 5px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: rgba(255,255,255,0.035);
+    font-size: 14px;
+  }
+  .roster {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 12px;
+    margin-top: 22px;
+  }
+  .rcard {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-top: 3px solid var(--tone, var(--gold));
+    border-radius: 16px;
+    padding: 14px;
+    min-width: 0;
+  }
+  .rcard .gh { margin: 0 0 4px; color: var(--tone, var(--gold)); font-size: 13px; letter-spacing: 0.06em; }
+  .rcard .brandline { margin: 0 0 8px; font-size: 15px; line-height: 1.45; }
+  .rcard .who { display: flex; flex-direction: column; align-items: flex-start; }
+  .rcard button {
+    appearance: none;
+    background: transparent;
+    border: 0;
+    padding: 3px 0;
+    color: var(--cream);
+    font: inherit;
+    font-size: 15px;
+    line-height: 1.45;
+    cursor: pointer;
+    text-align: left;
+  }
+  .rcard button:hover { color: var(--gold-2); }
+  @media (max-width: 980px) {
+    .hero-inner, .steps, .workspace, .score-top, .specgrid { grid-template-columns: 1fr; }
+    .mat-grid, .roster { grid-template-columns: 1fr 1fr; }
+    .hero-mark { display: none; }
+    .navmeta { display: none; }
+    .glist { position: static; max-height: none; grid-template-columns: 1fr 1fr; }
+    .stats { grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 640px) {
+    main { width: min(100% - 28px, 1180px); }
+    .hero { padding: 36px 16px 32px; }
+    .frame { inset: 10px; }
+    .glist, .mat-grid, .roster { grid-template-columns: 1fr; }
+    .mat.wide { grid-column: auto; }
+    .rule, .q { grid-template-columns: 48px 1fr; }
+    h1 { font-size: 36px; }
+    .topnav { padding: 0 12px; gap: 8px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .rec, .brief { animation: none; }
+  }
+  @media print {
+    .topnav, .toolbar, .glist, .hero-actions, .frame { display: none !important; }
+    body { background: #fff; color: #111; }
+    .hero { margin: 0; min-height: 0; background: #fff; }
+    .brief, .card, .rule, .step, .q, .note, .score-item { break-inside: avoid; border-color: #ccc; background: #fff; }
+    a { color: #111; }
+  }
+</style>
+</head>
+<body>
+<header class="topnav">
+  <a class="brand" href="#top"><b>JOINSPARK</b><span>101</span></a>
+  <nav class="navlinks" aria-label="页内目录">
+    <a href="#howto">怎么用</a>
+    <a href="#principles">原则</a>
+    <a href="#rules">统一要求</a>
+    <a href="#story">故事检查</a>
+    <a href="#materials">素材</a>
+    <a href="#roster">名单</a>
+    <a href="#groups">10组</a>
+    <a href="#score">评分</a>
+    <a href="#prompts">提示词</a>
+  </nav>
+  <div class="navmeta">9:16 · 15s · 10</div>
+</header>
+
+<section class="hero" id="top">
+  <div class="hero-mark" aria-hidden="true">10</div>
+  <div class="frame" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+  <div class="hero-inner">
+    <div>
+      <p class="kicker"><i class="rec" aria-hidden="true"></i> AI VIDEO DIRECTOR 101 · 分公司 WORKSHOP</p>
+      <h1>10组实战任务书</h1>
+      <p class="hero-sub">分公司培训 · 每人 1 张海报 + 1 条 15 秒视频</p>
+      <p class="hero-lead">先在名单里找到自己的组。每组一个指定主题，组内共用一张参考图，故事、角色和镜头各自设计。除 PandaMobo 外，品牌、产品和目的地都是这次的教学设定。</p>
+      <div class="hero-actions">
+        <a class="btn primary" href="#roster">找我的组</a>
+        <a class="btn" href="#rules">先看全场要求</a>
+      </div>
+      <div class="stats">
+        <div class="stat"><b>10</b><span>组指定主题</span></div>
+        <div class="stat"><b>1+1</b><span>海报 + 15秒视频</span></div>
+        <div class="stat"><b>4</b><span>分镜起，3种景别</span></div>
+        <div class="stat"><b>100</b><span>按个人作品</span></div>
+      </div>
+    </div>
+    <aside class="slate" aria-label="全场规格">
+      <div class="slate-top"><span>CALL SHEET</span><span>SCENE 10</span></div>
+      <h2>全场同一套规格</h2>
+      <dl>
+        <div><dt>海报</dt><dd>1张 · 9:16 · ChatGPT Image 2<br />建议 1080×1920</dd></div>
+        <div><dt>视频</dt><dd>1条 · 15秒 · 9:16<br />seedance 2.0 · 720p · 720×1280</dd></div>
+        <div><dt>语言</dt><dd>1–3 组、10 组用中文<br />4–9 组用英语</dd></div>
+        <div><dt>交付</dt><dd>海报、视频、提示词，加一句改过什么</dd></div>
+      </dl>
+    </aside>
+  </div>
+  <div class="lineup-wrap">
+    <p class="lineup-label">10 个指定主题 · 点开阅读该组全文</p>
+    <div class="lineup" id="lineup"></div>
+  </div>
+</section>
+
+<main>
+  <section id="howto">
+    <p class="sec-label">00 / 阅读方式</p>
+    <h2 class="sec">先看这三步</h2>
+    <p class="sec-intro">这一页只放做作品要用的内容。先对名字，再对规格，再读自己的组。</p>
+    <div class="steps">
+      <article class="step">
+        <em>01</em>
+        <h3>在名单里找到自己</h3>
+        <p>点自己的名字，打开对应的组。组内共用一张参考图，每人独立交 1 张海报和 1 条 15 秒视频。</p>
+      </article>
+      <article class="step">
+        <em>02</em>
+        <h3>只深读自己的组</h3>
+        <p>打开后看这一组必须讲清的内容：产品、海报、视频、人物、故事起点和完成判断。参考图在「素材」下载。</p>
+      </article>
+      <article class="step">
+        <em>03</em>
+        <h3>交片前做两道自检</h3>
+        <p>用五问检查故事是否还在，用一百分的五个维度检查完成度。海报和视频缺一，不进入完整作品评选。</p>
+      </article>
+    </div>
+  </section>
+
+  <section id="principles">
+    <p class="sec-label">01 / 任务原则</p>
+    <h2 class="sec">规定必须讲清什么</h2>
+    <p class="sec-intro">不指定第一镜全景、第二镜中景。人物通常 1–3 人，按故事需要决定。</p>
+    <div class="principle-grid">
+      <article class="card">
+        <div class="idx">原则 01</div>
+        <p>每组每位成员独立完成 1 张海报、1 条 15 秒视频。组内可以共用参考图，每人自行设计故事与提示词。所有组都要有人物和产品、App、地点或服务内容的互动。</p>
+      </article>
+      <article class="card">
+        <div class="idx">原则 02</div>
+        <p>1–3 组、10 组用中文完成。4–9 组以英语为主要语言，台词、字幕、标题和行动引导保持同一种语言。平台风格只是创作方向，不要求真的发布或投放。</p>
+      </article>
+      <article class="card">
+        <div class="idx">原则 03</div>
+        <p>除 PandaMobo 外，品牌、产品和目的地都是这次的教学设定，不代表真实客户。没有资料支持的价格、容量、续航、利率、营养、性能和商业成果，不要自己加。</p>
+      </article>
+    </div>
+  </section>
+
+  <section id="rules">
+    <p class="sec-label">02 / 统一硬性要求</p>
+    <h2 class="sec">每人 1 张海报，1 条视频</h2>
+    <p class="sec-intro">10 组使用同一套制作标准。视频模型按本次培训平台的选项，使用 seedance 2.0。下面是检查项，不是要交多张海报或多条视频。</p>
+
+    <div class="rule-block" id="rule-poster">
+      <h3>海报 · 要检查的内容</h3>
+      <p class="hint">每人只交 1 张。姓名、Logo、产品包装、App 界面和准确文字可以后期合成。生成结束后核对关键文字。</p>
+      <div class="rules">
+        <article class="rule"><div class="no">01</div><div><div class="name">规格与模型</div><p>ChatGPT Image 2，沿用培训平台对应的图片模型选项。9:16，建议成品 1080×1920。</p></div></article>
+        <article class="rule"><div class="no">02</div><div><div class="name">人物、场景、主体</div><p>至少 1 名人物、明确场景，以及本组的品牌、产品、地点或服务。人物要通过动作、视线或明确情境和主题关联，不能只站在旁边。</p></div></article>
+        <article class="rule"><div class="no">03</div><div><div class="name">标题、信息、行动</div><p>1 个主标题，至少 2 个不重复的有效信息点，以及 1 个行动引导。</p></div></article>
+        <article class="rule"><div class="no">04</div><div><div class="name">不编没有依据的数字</div><p>价格、容量、续航、利率、营养、性能和商业成果，资料里没有的就不要写。第 6、7 组必须使用本次提供的教学参考页，不要另外编一套审批页或播放页。</p></div></article>
+      </div>
+    </div>
+
+    <div class="rule-block" id="rule-video">
+      <h3>视频 · 要检查的内容</h3>
+      <p class="hint">每人只交 1 条 15 秒。可以分镜生成后再剪辑，不要求先做首帧。不要整条视频只做海报缩放轮播。</p>
+      <div class="rules">
+        <article class="rule"><div class="no">01</div><div><div class="name">规格与模型</div><p>seedance 2.0，720p。15 秒成片，9:16，720×1280。时间区间连续，无空档、无重叠，合计 15 秒。</p></div></article>
+        <article class="rule"><div class="no">02</div><div><div class="name">分镜</div><p>至少 4 个，建议 4–5 个，至少 3 次清楚切镜。不规定哪一秒必须用哪个景别。</p></div></article>
+        <article class="rule"><div class="no">03</div><div><div class="name">景别、机位、运镜</div><p>至少 3 种景别，从远景、全景、中景、近景、特写里选。至少 2 种机位，从平视、俯拍、仰拍里选。至少 1 次有表达作用的推、拉、摇或移。</p></div></article>
+        <article class="rule"><div class="no">04</div><div><div class="name">人物动作</div><p>至少 2 个分镜有可见人物动作，其中至少 1 次关键互动。精细插线、拆包装等操作可以用切镜略过。</p></div></article>
+        <article class="rule"><div class="no">05</div><div><div class="name">核心展示与阅读</div><p>产品、界面、地点特征或服务成果清楚展示累计至少 3 秒，其中有 1 个专门看清核心内容的镜头。核心文字连续稳定至少 2 秒，可以和产品展示、结尾重合。</p></div></article>
+        <article class="rule"><div class="no">06</div><div><div class="name">表演、声音、正反打</div><p>至少 1 次有原因的表情、视线或呼吸变化。至少 1 句短对白或配音，并配字幕。两人面对面交流时至少 1 组正反打，可以用越肩；其他故事不强制。</p></div></article>
+        <article class="rule"><div class="no">07</div><div><div class="name">前后要认得出</div><p>人物外貌与衣服、产品型号、空间左右、视线和物品归属前后合理。故事要有具体需要或期待、人物行动、核心内容发挥作用、可见结果或反差，以及名称和行动引导。</p></div></article>
+      </div>
+    </div>
+
+    <div class="free" id="rule-free">
+      <h3>语言和界面</h3>
+      <p>1–3 组、10 组用中文。4–9 组用英语，台词、字幕、标题和行动引导不要中英混成两套主语言。第 6、7 组必须出现指定 App 界面特写。这里的界面就是本次提供的教学参考页。客户实战时再换成正式界面。</p>
+      <p>贷款是课堂模拟创意。真实投放另按客户市场和已批准资料制作。只有一张产品图时，选它能支持的视角，不要凭空猜背面接口或内部结构。</p>
+    </div>
+  </section>
+
+  <section id="story">
+    <p class="sec-label">03 / 故事检查</p>
+    <h2 class="sec">动笔前先回答这五问</h2>
+    <p class="sec-intro">这不是五镜头模板。写完一行故事后，用这五问看因果还在不在。</p>
+    <div class="questions">
+      <article class="q"><b>01</b><p>我要给谁看？</p></article>
+      <article class="q"><b>02</b><p>这是什么产品、地点或服务？</p></article>
+      <article class="q"><b>03</b><p>一个主要卖点是什么？</p></article>
+      <article class="q"><b>04</b><p>什么人物动作能让这个卖点被看见？</p></article>
+      <article class="q"><b>05</b><p>观众看完记住什么、做什么？</p></article>
+    </div>
+    <div class="note">
+      <p>若删掉产品、地点或服务之后故事完全不变，需要重新建立关联。故事起点只是参考，可以自己换，不要求全组照拍。</p>
+    </div>
+  </section>
+
+  <section id="materials">
+    <p class="sec-label">04 / 组内共用素材</p>
+    <h2 class="sec">每组下载这一张</h2>
+    <p class="sec-intro">每组只有 1 张基础参考图。同一组的人用同一张，保证包装、外形和地点一致。品牌名字和文案在卡片里，点「复制这段」。</p>
+    <div class="note">
+      <p>B01–B09 是这次的教学参考，不是最终海报。B06 画面上的金额和期限只是输入选项，没有写 APR，不要说成已经获批。B10 使用现有 PandaMobo 官方 Logo，这一页不提供重画的标识。</p>
+    </div>
+    <div class="mat-grid" id="matgrid"></div>
+  </section>
+
+  <section id="roster">
+    <p class="sec-label">05 / 培训分组名单</p>
+    <h2 class="sec">点自己的名字</h2>
+    <p class="sec-intro">名字按现场分组海报录入。点名字进入该组任务。也可以在下面的搜索框里输入姓名。</p>
+    <div class="roster" id="roster"></div>
+  </section>
+
+  <section id="groups">
+    <p class="sec-label">06 / 10组具体任务</p>
+    <h2 class="sec">点开一组，读完这一组</h2>
+    <p class="sec-intro">每组都有：同学、品牌资料、海报必须讲清、视频必须讲清、人物、故事起点、领取和完成判断。</p>
+    <div class="toolbar">
+      <div class="filters" role="group" aria-label="按主题筛选">
+        <button class="chip" type="button" data-cat="all" aria-pressed="true">全部 10</button>
+        <button class="chip" type="button" data-cat="food" aria-pressed="false">食品 3</button>
+        <button class="chip" type="button" data-cat="shop" aria-pressed="false">电商 2</button>
+        <button class="chip" type="button" data-cat="loan" aria-pressed="false">现金贷 1</button>
+        <button class="chip" type="button" data-cat="novel" aria-pressed="false">小说 1</button>
+        <button class="chip" type="button" data-cat="car" aria-pressed="false">汽车 1</button>
+        <button class="chip" type="button" data-cat="travel" aria-pressed="false">文旅 1</button>
+        <button class="chip" type="button" data-cat="panda" aria-pressed="false">PandaMobo 1</button>
+      </div>
+      <input class="search" id="q" type="search" placeholder="搜索姓名、组名或产品" aria-label="搜索任务" />
+      <button class="mode" id="modeBtn" type="button">展开全部 10 组</button>
+    </div>
+    <p class="count" id="count"></p>
+    <div class="workspace" id="workspace">
+      <div class="glist" id="glist" role="listbox" aria-label="10组"></div>
+      <div class="gstage" id="gstage"></div>
+    </div>
+  </section>
+
+  <section id="score">
+    <p class="sec-label">07 / 评分</p>
+    <h2 class="sec">100 分，按个人作品</h2>
+    <p class="sec-intro">角色多、特效多，不自动加分。海报和视频都要交。</p>
+    <div class="score-top">
+      <div class="total">100<small>POINTS</small></div>
+      <div>
+        <div class="bar" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+        <div class="scores">
+          <article class="score-item"><b>25</b><div><strong>内容与产品表达</strong><p>品牌和主体准确，卖点清楚，关键资料不造假</p></div></article>
+          <article class="score-item"><b>25</b><div><strong>故事与人物互动</strong><p>有具体起因、动作与回应，核心内容推动情节</p></div></article>
+          <article class="score-item"><b>20</b><div><strong>教学内容运用</strong><p>达到景别、机位、运镜与分镜要求，镜头有表达作用</p></div></article>
+          <article class="score-item"><b>20</b><div><strong>画面与声音执行</strong><p>人物产品连续、界面和文字可读、声音字幕清楚</p></div></article>
+          <article class="score-item"><b>10</b><div><strong>提示词与修改</strong><p>参考图分工、动作与时间写清，说明一次具体修改</p></div></article>
+        </div>
+      </div>
+    </div>
+    <h3 style="margin:28px 0 0;font-size:22px;">你要交什么</h3>
+    <div class="deliver">
+      <span>海报 1 张</span><span>15 秒视频 1 条</span><span>实际使用的提示词</span><span>1 句话：改过什么</span>
+    </div>
+    <p style="max-width:48rem;margin:0;">每组选出 1 套作品用于展示。若因平台故障无法完成，保留提示词和已生成部分，由现场统一说明，不把工具故障直接当成能力不足。</p>
+  </section>
+
+  <section id="prompts">
+    <p class="sec-label">08 / 填写模板</p>
+    <h2 class="sec">先写故事，再填时间</h2>
+    <p class="sec-intro">四个时间段只是示例，可以调成 4–5 个镜头。总和保持 15 秒。没有的参考图不要填写。</p>
+    <div class="principle-grid">
+      <article class="card">
+        <div class="idx">海报提示词</div>
+        <pre class="sheet" data-kit="POSTER"></pre>
+        <button class="copy" type="button" data-copy="POSTER">复制这段</button>
+      </article>
+      <article class="card">
+        <div class="idx">视频提示词</div>
+        <pre class="sheet" data-kit="VIDEO"></pre>
+        <button class="copy" type="button" data-copy="VIDEO">复制这段</button>
+      </article>
+    </div>
+  </section>
+
+  <footer>
+    <p>JoinSpark AI 视频导演 101 · 分公司培训。除 PandaMobo 外均为教学设定。素材发放、现场控时和评审办法不在这一页。</p>
+  </footer>
+</main>
+
+<script>
+const SHARED = "每人1张9:16海报（ChatGPT Image 2，建议1080×1920）＋1条15秒竖屏视频（seedance 2.0、720p、720×1280）。视频至少4个分镜、3种景别、2种机位角度、1次有效运镜；至少2个分镜有人物动作、1次关键互动，核心内容清楚展示累计至少3秒，关键文字连续至少2秒。至少1句短对白／配音及字幕。有面对面双人交流时使用1组正反打。具体故事、角色与镜头顺序自由。";
+const SPECS = [
+  "海报 1 张 · 9:16 · ChatGPT Image 2 · 建议 1080×1920",
+  "视频 1 条 · 15 秒 · seedance 2.0 · 720p · 720×1280",
+  "至少 4 个分镜，建议 4–5 个，至少 3 次切镜",
+  "至少 3 种景别，至少 2 种机位，至少 1 次有效运镜",
+  "至少 2 个分镜有人物动作，其中 1 次关键互动",
+  "核心内容累计清楚露出至少 3 秒，关键文字连续稳定至少 2 秒",
+  "至少 1 句对白／配音，并配可读字幕",
+  "第 6、7 组须有指定界面特写；两人面对面交流须有 1 组正反打"
+];
+const GROUP_JSON = [{"id": "g1", "no": "01", "cat": "食品品牌宣传", "catKey": "food", "tone": "#e7c27a", "group": "1组", "brand": "谷醒燕麦脆棒", "asset": "B01", "kit": "B01", "title": "早上的这一棒，递给谁？", "heading": "1组｜谷醒燕麦脆棒：早上的这一棒，递给谁？", "names": ["赵一帆", "朱婷", "张晓婷", "李青", "王曦然", "甄天予"], "what": "一款独立条装的燕麦脆棒教学产品，奶油米色包装配谷物金棕色。适合早餐搭配、通勤携带和办公室分享。", "points": "燕麦脆棒品类；独立条装、便于携带；早餐或分享情境。", "lang": "国内市场，中文。抖音信息流风格，生活情境清楚、产品识别直接。", "poster": ["清楚出现谷醒品牌、燕麦脆棒产品名和完整包装。", "主标题围绕早餐、通勤或分享中的一个需要，另有至少 1 条有依据的支持信息。", "人物与产品发生拿取、选择、递出或展示关系，场景能解释为什么需要它。", "有购买或了解引导。不添加代餐减肥、高蛋白、零糖等未设定宣称。"], "video": ["人物面临一个具体的早餐或出门情境，脆棒通过人物行动进入故事。", "至少一次围绕产品的动作与回应，让包装和便携使用方式被看见。", "故事有结果或反差，结尾能认出品牌与产品。", "不强制咬开和咀嚼，不虚构营养与健康效果。"], "people": "拿出、放入包中、递给同伴或对照选择均可。用剪辑完成递接，保持同一包装。", "story": "出门前一直寻找“忘带的东西”，最后通过人物互动揭晓是早餐脆棒。具体人物与反转自行设计。可以自己换，不要求全组照拍。", "line": "早上的这一棒，别落下。", "prep": "B01：燕麦脆棒包装白底图 1 张。下载本页「素材」里的 B01，全组用这一张。", "done": "观众知道卖的是什么，理解人物为什么在这个情境需要它，而不只是看见举包装。"}, {"id": "g2", "no": "02", "cat": "食品品牌宣传", "catKey": "food", "tone": "#e7c27a", "group": "2组", "brand": "柚见西柚气泡水", "asset": "B02", "kit": "B02", "title": "谁把休息键递过来了？", "heading": "2组｜柚见西柚气泡水：谁把休息键递过来了？", "names": ["王雅琪", "孙新", "竹夏冰", "王佳佳", "鲍玉宁", "王焕燃"], "what": "一款西柚口味的罐装气泡水教学产品，浅珊瑚粉罐身搭配简洁西柚图形。用于午后休息、朋友相聚与餐间分享。", "points": "西柚口味；罐装气泡饮品；休息与分享情境。", "lang": "国内市场，中文。抖音信息流风格，午后情境与轻松反差。", "poster": ["品牌、口味和罐身包装清楚，主要视觉与午后休息或分享相关。", "人物与饮品有明确动作或视线关系，不能只有人物大笑而产品藏在角落。", "至少 2 个不重复信息点，如西柚口味与午后分享情境。", "有行动引导。不自行写零糖、低卡、排毒、提神或疗效。"], "video": ["人物有一个休息、分享或轻微误会的情境。", "饮品通过递出、选择或放到人物面前等动作推动故事。", "出现一个有原因的表情或行为变化，产品包装得到清楚展示。", "开罐和饮用可用剪辑略过，不要求复杂液体飞溅。"], "people": "递罐、拿取、轻举、选择或自然饮用任选，手与罐的接触合理。", "story": "人物把“休息一下”的暗示理解成别的事，一罐饮品让误会得到轻松回应。可以自己换，不要求全组照拍。", "line": "休息一下，柚见好心情。", "prep": "B02：西柚气泡水单罐白底图 1 张。下载本页「素材」里的 B02，全组用这一张。", "done": "人物为什么接过这罐饮品清楚，口味与品牌可辨，情绪变化有原因。"}, {"id": "g3", "no": "03", "cat": "食品品牌宣传", "catKey": "food", "tone": "#e7c27a", "group": "3组", "brand": "可可搭巧克力威化饼干", "asset": "B03", "kit": "B03", "title": "说好分一半，怎么分？", "heading": "3组｜可可搭巧克力威化饼干：说好分一半，怎么分？", "names": ["王璐", "孙佳怡", "解晨薇", "张树磊", "闫俞辰", "徐杨", "刘宝菁"], "what": "一款小袋装巧克力威化饼干教学产品，深可可棕包装配奶油色文字和威化切面插画。用于办公休息、朋友分享与随身零食场景。", "points": "巧克力威化品类；小袋包装；同伴分享情境。", "lang": "国内市场，中文。抖音信息流风格，分享关系与轻松情节。", "poster": ["产品名称、品牌和包装正面清楚，能分辨这是一款威化零食。", "人物与分享、选择或递接存在关系，至少 2 个有效信息点。", "标题与人物关系对应，不只堆“好吃”“超值”。", "有行动引导。不自编可可含量、营养指标和健康卖点。"], "video": ["一个具体的分享期待、误会或选择引出产品。", "通过拿取、递出、护住或确认包装等动作推动人物关系。", "看得到前因、行动和回应，结果与产品相关。", "不强制拆袋、掰断和精准食物入口，可用切镜简化。"], "people": "围绕同款包装的递接、选择、分享和回应，角色人数按创意决定。", "story": "两个人对“分一半”的理解不同，围绕分享产生轻松反差，最终回到产品。可以自己换，不要求全组照拍。", "line": "有可可，也有好搭子。", "prep": "B03：威化饼干包装白底图 1 张。下载本页「素材」里的 B03，全组用这一张。", "done": "产品是分享故事的关键，包装准确，观众能看懂误会如何得到回应。"}, {"id": "g4", "no": "04", "cat": "电商主题", "catKey": "shop", "tone": "#b9dcff", "group": "4组", "brand": "BreezePop Mini", "asset": "B04", "kit": "B04", "title": "都在说“冷静一下”，谁真的帮上忙？", "heading": "4组｜BreezePop Mini 手持风扇：都在说“冷静一下”，谁真的帮上忙？", "names": ["王放", "唐依雪", "朱景景", "康子金", "张玉", "位玉亭"], "what": "一款面向日常外出的便携手持风扇教学产品，奶油白外壳配薄荷绿细节，圆形防护网罩与短手柄。用于排队、等车或户外休息。", "points": "手持使用；小巧携带；近距离送风情境。", "lang": "海外英语市场。TikTok 竖屏信息流创意，直接展示使用情境与反应。台词、字幕、标题和行动引导用英语。", "poster": ["英文品牌与产品识别清楚，人物所处情境能解释为什么拿出风扇。", "手、手柄与网罩关系合理，风扇不被遮住。", "至少 2 个有效信息点，以便携和使用情境为主。", "英文行动引导明确。不自编续航、风速档位、制冷和降温数值。"], "video": ["人物有一个真实可理解的需要，如等待时感到闷热。", "通过拿出、递出、打开或调整朝向完成关键互动。", "用适度表情、发丝或衣料轻微变化说明使用关系，不能吹飞人或物品。", "故事有回应，产品与英文行动引导清楚出现，避免整条只有夸张表演。"], "people": "握持、递出、按键或朝向人物均可。不把风扇网罩贴脸，避免复杂机械变化。", "story": "一句“冷静一下”被人物误会，风扇以具体用途进入情节，笑点与产品一致。可以自己换，不要求全组照拍。", "line": "A little breeze. A better break.", "prep": "B04：手持风扇白底图 1 张。下载本页「素材」里的 B04，全组用这一张。", "done": "不看字幕也能理解人物怎样使用它，英文统一，产品形状与朝向连续。"}, {"id": "g5", "no": "05", "cat": "电商主题", "catKey": "shop", "tone": "#b9dcff", "group": "5组", "brand": "LoopBeat Air", "asset": "B05", "kit": "B05", "title": "你以为他没听见，其实……", "heading": "5组｜LoopBeat Air 头戴式无线耳机：你以为他没听见，其实……", "names": ["薛漠含", "程冕", "孙菲", "洪雅琴", "郭娟", "高雅茜"], "what": "一款头戴式无线耳机教学产品，午夜蓝耳罩与头梁配柔软深灰耳垫。用于音乐休息、通勤和个人聆听场景。", "points": "头戴式设计；无线使用情境；个人聆听与休息。", "lang": "海外英语市场。TikTok 竖屏信息流创意，人物关系与使用体验。台词、字幕、标题和行动引导用英语。", "poster": ["耳机品牌、型号及头梁耳罩结构清楚。", "人物佩戴、取下或展示产品，不能只把耳机漂浮在人物头旁。", "至少 2 个有效信息点与人物体验对应。", "英文行动引导清楚。不编主动降噪、音质排名、续航或防水参数。"], "video": ["围绕人物聆听、回应同伴或暂时沉浸设计情境。", "至少一次正确佩戴、取下单侧耳罩、查看或递出耳机的互动。", "人物反应与前一事件有因果。笑点可来自误会，但不能把未设定的降噪当功能。", "声音设计可配合人物视角，收尾准确展示品牌与产品。"], "people": "自然佩戴或轻轻取下耳罩即可，不要求复杂折叠、配对和手机页面。", "story": "同伴误以为人物没听见，人物的回应揭示另一层原因。产品参与，但不承担虚构能力。可以自己换，不要求全组照拍。", "line": "Make a moment for your music.", "prep": "B05：耳机白底图 1 张，不另需 App 截图。下载本页「素材」里的 B05，全组用这一张。", "done": "耳机贴合耳部、结构连续，人物回应有逻辑，观众记住产品而非只有段子。"}, {"id": "g6", "no": "06", "cat": "现金贷主题", "catKey": "loan", "tone": "#f0b09a", "group": "6组", "brand": "ClearLend", "asset": "B06", "kit": "B06", "title": "他说“低一点”，说的是哪个数字？", "heading": "6组｜ClearLend：他说“低一点”，说的是哪个数字？", "names": ["雷宝富", "扈立彤", "王浩然", "石需需", "张立志"], "what": "一款虚构的海外个人贷款 App，展示金额选择、还款期限与个性化利率查询。以低利率方案定位和费用信息清楚为创作重点。具体利率与实际条款未设定。", "points": "低利率方案定位，数值须有正式依据；金额、期限与费用查询清楚；个性化报价查看入口。", "lang": "海外英语市场，美元为教学金额单位。海外竖屏信息流模拟创意，可信表达与清楚信息优先。台词、字幕、标题和行动引导用英语。", "poster": ["明确出现 ClearLend 品牌与指定英文 App 界面。", "主信息围绕低利率方案或查看报价，辅信息解释期限、费用查询等已展示内容。", "成年人物与手机界面有查看、核对或展示关系。", "保留教学演示说明。不自编 APR、零费用、必过、秒到账或借款结果。"], "video": ["人物需要了解一种方案，或对“低一点”的含义产生轻微误会。", "通过查看指定页面与一次操作或核对，让产品界面参与解释。", "至少 1 次界面特写，查询行为与后续人物回应相连。", "结果是看懂信息或选择查看详情，不直接演成必然获批、到账或解决一切。"], "people": "查看金额、轻触 Check my rate、向同伴展示界面均可。只有一张页面时，用界面插镜表达，不编第二个审批页。", "story": "“低一点”先被理解成音量或座椅高度，再揭晓人物在讨论利率。是否采用由自己决定。可以自己换，不要求全组照拍。", "line": "Explore low-rate options. See the full picture.", "prep": "B06：英文 App 页面 1 张。画面上的金额和期限是输入选项，不是已获批报价。全组用这一张，不要另做第二套界面。", "done": "看得出是海外贷款 App，低利率定位清楚、条款不造假，界面与人物行动有关。"}, {"id": "g7", "no": "07", "cat": "小说主题", "catKey": "novel", "tone": "#d9d3ea", "group": "7组", "brand": "Novellair", "asset": "B07", "kit": "B07", "title": "他在看手机，表情却像在破案", "heading": "7组｜Novellair：他在看手机，表情却像在破案", "names": ["赵茂霖", "刘轩", "石之光", "王志艳", "卢婷婷", "陈禹彤"], "what": "Novellair 是读小说的 App，商店名是 Novellair-Your Book Nook。这次参考图是发现页：可以按题材选书，也能看到本周推荐和热门书。", "points": "发现页选书；按题材找故事；书库里挑下一本。", "lang": "海外英语阅读人群。TikTok 竖屏信息流创意，人物在发现页上的反应。台词、字幕、标题和行动引导用英语。", "poster": ["出现 Novellair 名称，并使用本次提供的 Discover 页面。", "主标题围绕选书或读小说的心情，不能只做成某一本书的封面海报。", "至少 2 个有效信息点，如发现页、题材或书库。", "有打开或了解引导。不自编价格、永久免费或更新速度。"], "video": ["人物在一个日常情境里打开发现页，看到某本书或某个题材后有可见反应。", "滑动、点选封面或向同伴展示等动作推动情节。", "至少 1 次使用这张 Discover 页面的界面特写，人物反应要和选书有关。", "结尾回到 Novellair，不要做成没有界面的单本预告片。"], "people": "浏览发现页、点选题材或封面、向他人展示均可。用这一张页面完成故事，不要另做第二套播放页。", "story": "同伴以为人物在查看重要消息，实际他正在发现页里被一本书吊住。可以做轻松反差，也可以自己换，不要求全组照拍。", "line": "Start your novel obsession.", "prep": "B07：Novellair 的 Discover 页面 1 张。全组用这一张。Google Play 链接在品牌资料里，点开即可跳转。", "done": "观众明白推广的是 Novellair，发现页可辨，表情和选书有关。", "play": "https://play.google.com/store/apps/details?id=com.qvon.novellair&hl=en_US"}, {"id": "g8", "no": "08", "cat": "汽车主题", "catKey": "car", "tone": "#9fd0c8", "group": "8组", "brand": "LANSOR T1", "asset": "B08", "kit": "B08", "title": "以为要拍大片，原来只是周末出发", "heading": "8组｜LANSOR T1：以为要拍大片，原来只是周末出发", "names": ["王海霞", "游恩", "闫晴", "赵岩"], "what": "一款虚构纯电旅行车，深海蓝车身、低矮长车顶与简洁前脸。以城市生活和周末出行情境展示车型外观。不预设续航、空间容积与辅助驾驶参数。", "points": "纯电旅行车定位；深海蓝长车顶外观；周末出行的生活关系。", "lang": "海外英语市场。TikTok 或 Reels 竖屏品牌创意，人物情境与整车识别。台词、字幕、标题和行动引导用英语。", "poster": ["品牌、车型名和足够辨认车型的完整外观清楚。", "人物与车、同行者或出发准备发生关系。", "至少 2 个信息点来自车型定位、外观或故事情境。", "有了解或查看车型的引导。不添加价格、续航、超充和智能驾驶能力。"], "video": ["人物有一个与出发、见面、拍摄或周末计划有关的具体动机。", "至少一次人物与汽车的互动，整车和一个外观细节得到清楚展示。", "车辆在故事中有作用，人物回应形成收束或反差。", "不强制开车、开门和装载行李。不编后备厢容量、座位功能和性能。"], "people": "围绕车辆拍照、查看外观、轻触车身或与同行者确认出发均可。避免遮挡车身和错误接触。", "story": "同伴以为一系列认真准备是在拍大片，最后揭晓只是准备一次周末出行。可以自己换，不要求全组照拍。", "line": "Your weekend has a new starting point.", "prep": "B08：同一车型完整侧前方图 1 张。下载本页「素材」里的 B08，全组用这一张，不要换成别的车。", "done": "车型没有被人物表演淹没，外观连续，情节与这辆车的使用情境有关。"}, {"id": "g9", "no": "09", "cat": "文旅主题", "catKey": "travel", "tone": "#b7e7d4", "group": "9组", "brand": "松映湖 Pineveil Lake", "asset": "B09", "kit": "B09", "title": "来找信号，却发现另一种连接", "heading": "9组｜森林湖畔：来找信号，却发现另一种连接", "names": ["陈子轩", "师承悦", "魏久凌", "武田田", "曹璞"], "what": "一处虚构森林湖畔目的地，地点名是松映湖 Pineveil Lake。具有平静湖面、针叶林与平整木栈道。重点展示湖畔散步、拍照和同伴交流。", "points": "森林与湖面；可辨识木栈道；散步拍照的旅行体验。", "lang": "面向海外英语游客的教学创意。TikTok 或 Reels 竖屏文旅创意。台词、字幕、标题和行动引导用英语。", "poster": ["Pineveil Lake 地点名清楚，湖面、森林和栈道构成可辨场景。", "人物与地点或同行者有具体关系，不能只有人物贴在风景前。", "至少 2 个来自参考的吸引点，如森林湖面与木栈道。", "有了解目的地的引导。不编真实地理位置、票价、开放时间和设施服务。"], "video": ["人物带着一个小目标或期待到达湖畔。", "通过寻找角度、拍照、散步或与同伴交流，让目的地特点进入故事。", "景观带来一次可见发现或回应，结尾回收地点名。", "可以从“找信号”引发故事，但不能把手机断网写成目的地事实。不只做空镜推拉。"], "people": "站在步道安全区域看湖、与同行者交流或拍照。人物位置、栈道和湖岸关系保持连续。", "story": "人物举手机像在找信号，同伴以为他还在忙工作，原来在找把两个人都拍进去的角度。可以自己换，不要求全组照拍。", "line": "A quieter view. A closer moment.", "prep": "B09：湖畔场景图 1 张。无需地图、路线卡或酒店图片。下载本页「素材」里的 B09，全组用这一张。", "done": "故事依赖湖畔地点特征，人物确实体验环境，场景空间和地点名一致。"}, {"id": "g10", "no": "10", "cat": "PandaMobo宣传海报", "catKey": "panda", "tone": "#e4c48a", "group": "10组", "brand": "PandaMobo", "asset": "B10", "kit": "B10", "title": "产品准备好了，海外广告谁来一起做？", "heading": "10组｜品牌出海营销服务：产品准备好了，海外广告谁来一起做？", "names": ["张晶", "田思坤", "杜娟", "苏筠博", "刘妍娟", "戴妍"], "what": "PandaMobo 是面向企业出海的整合营销服务品牌。本次聚焦海外广告代运营与品牌出海营销方案，用具体客户需求和服务过程说明价值。", "points": "海外广告代运营；品牌出海营销方案；服务电商、App 等多类出海业务。", "lang": "面向国内有出海需求的品牌客户，中文。企业微信、朋友圈等企业业务传播场景，9:16 海报与视频。", "poster": ["准确出现 PandaMobo 名称和官方 Logo。", "至少讲清 2 项真实主要服务：海外广告代运营、品牌出海营销方案。", "至少表达 1 项有依据的亮点，例如服务电商、App 等多类出海业务。不能只写专业领先。", "人物与客户需求、方案或广告创意成果互动，有了解或咨询引导。"], "video": ["从一个具体的品牌出海需求出发，让客户目标看得懂。", "通过沟通、查看方案、确认素材或安排传播，使至少 1 项服务发挥作用。", "另一项服务可通过画面标注或结尾信息出现，出现可理解的方案或工作结果。", "结尾准确露出品牌与咨询方向。不编销量、ROI、获客成本、客户名单和保证增长。"], "people": "客户与服务人员讨论同一项任务。人物查看方案、对照创意或确认安排。方案内容可以用这次自己生成的作品。", "story": "客户把“出海”理解成一堆旅行准备，团队通过实际营销需求说明出海要准备的是什么。也可以写真实业务小故事。可以自己换，不要求全组照拍。", "line": "品牌出海，一起把想法落地。", "prep": "B10：现有 PandaMobo 官方 Logo 1 张。本页简介与服务说明可以直接复制。Logo 不清楚时用现场发放的正式标识，不要自己重画一只熊猫。", "done": "观众能说出至少 2 项服务，理解其中一项怎样回应客户需求，并认出 PandaMobo。"}];
+const KIT_JSON = {"B01": "谷醒 GUXING\n燕麦脆棒\n是什么：独立条装的燕麦脆棒教学产品，奶油米色包装配谷物金棕色。适合早餐搭配、通勤携带和办公室分享。\n表达重点：燕麦脆棒品类；独立条装、便于携带；早餐或分享情境。\n语言：中文。\n文案示例：早上的这一棒，别落下。\n不要添加：代餐减肥、高蛋白、零糖等未设定宣称。", "B02": "柚见 YUZEN\n西柚气泡水\n是什么：西柚口味的罐装气泡水教学产品，浅珊瑚粉罐身搭配简洁西柚图形。用于午后休息、朋友相聚与餐间分享。\n表达重点：西柚口味；罐装气泡饮品；休息与分享情境。\n语言：中文。\n文案示例：休息一下，柚见好心情。\n不要添加：零糖、低卡、排毒、提神或疗效。", "B03": "可可搭 COCODA\n巧克力威化饼干\n是什么：小袋装巧克力威化饼干教学产品，深可可棕包装配奶油色文字和威化切面插画。用于办公休息、朋友分享与随身零食。\n表达重点：巧克力威化品类；小袋包装；同伴分享情境。\n语言：中文。\n文案示例：有可可，也有好搭子。\n不要添加：可可含量、营养指标和健康卖点。", "B04": "BreezePop Mini\n手持风扇\n是什么：便携手持风扇教学产品，奶油白外壳配薄荷绿细节，圆形防护网罩与短手柄。用于排队、等车或户外休息。\n表达重点：手持使用；小巧携带；近距离送风情境。\n语言：英语。\n文案示例：A little breeze. A better break.\n不要添加：续航、风速档位、制冷和降温数值。", "B05": "LoopBeat Air\n头戴式无线耳机\n是什么：头戴式无线耳机教学产品，午夜蓝耳罩与头梁配柔软深灰耳垫。用于音乐休息、通勤和个人聆听。\n表达重点：头戴式设计；无线使用情境；个人聆听与休息。\n语言：英语。\n文案示例：Make a moment for your music.\n不要添加：主动降噪、音质排名、续航或防水参数。", "B06": "ClearLend\n海外个人贷款 App（虚构教学）\n是什么：展示金额选择、还款期限与个性化利率查询。具体利率与实际条款未设定。\n表达重点：低利率方案定位，数值须有正式依据；金额、期限与费用查询清楚；个性化报价查看入口。\n语言：英语。只使用参考图上已经出现的数字。\n文案示例：Explore low-rate options. See the full picture.\n画面数字：Loan amount $1,200；Repayment term 12 months；滑杆标注 $500、$1,250、$5,000。Personalized APR 只写 View your rate and fees，没有百分比。\n页底原文：Workshop demo. Not a live offer.\n不要添加：APR 百分比、零费用、必过、秒到账或借款结果。不要把 $1,200 说成已经获批。", "B07": "Novellair\nYour Book Nook\n是什么：读小说的 App。\n简介：Hide away with endless stories in Novellair, a book nook just for you. Take your pick from romance, thriller and more.\n表达重点：发现页选书；按题材找故事；书库里挑下一本。\n画面文案：START YOUR NOVEL OBSESSION\nGoogle Play：https://play.google.com/store/apps/details?id=com.qvon.novellair&hl=en_US", "B08": "岚序 LANSOR T1\n纯电旅行车（虚构教学）\n是什么：深海蓝车身、低矮长车顶与简洁前脸。以城市生活和周末出行展示外观。\n表达重点：纯电旅行车定位；深海蓝长车顶外观；周末出行的生活关系。\n语言：英语。\n文案示例：Your weekend has a new starting point.\n不要添加：价格、续航、超充、空间容积和智能驾驶能力。", "B09": "松映湖 Pineveil Lake\n森林湖畔旅行目的地（虚构教学）\n是什么：平静湖面、针叶林与平整木栈道。重点是湖畔散步、拍照和同伴交流。\n表达重点：森林与湖面；可辨识木栈道；散步拍照的旅行体验。\n语言：英语。\n文案示例：A quieter view. A closer moment.\n不要添加：真实地理位置、票价、开放时间和设施服务。", "B10": "PandaMobo 熊猫新媒\n品牌出海营销服务\n是什么：面向企业出海的整合营销服务。本次聚焦海外广告代运营与品牌出海营销方案。\n表达重点：海外广告代运营；品牌出海营销方案；服务电商、App 等多类出海业务。\n语言：中文。面向国内有出海需求的品牌客户。\n文案示例：品牌出海，一起把想法落地。\nLogo：使用现有 PandaMobo 官方 Logo，不要重新绘制。\n不要添加：销量、ROI、获客成本、客户名单和保证增长。\n依据：https://www.pandamobo.com/\nhttps://metaforbusiness.cn/resellers/pandamobo", "POSTER": "为［本组品牌与产品］制作一张面向［人群］、用于［平台］的9:16海报。\n图1锁定［产品／App／地点／Logo］；图2如有则锁定人物；图3如有则参考场景。没有的图不填写。\n人物［谁］在［场景］中，通过［明确动作］与［核心内容］互动，展示［主要价值］。\n采用［风格、品牌色、材质、光线］，产品位于［位置］，阅读顺序为［主标题、人物与产品、支持信息、行动引导］。\n准确文字：主标题“［填写］”，辅助信息“［填写］”，行动引导“［填写］”。\n保持参考中的品牌、外形、界面和文字准确，不增加未提供的参数。指定文字区域留白，重要信息避开边缘和平台遮挡区域。", "VIDEO": "制作［本组品牌与产品］的15秒、9:16、720p广告。参考图1锁定产品／界面／地点，其他人物或场景参考按实际上传编号说明。\n目标人群［填写］，平台［填写］，主要卖点［填写］，人物关系［填写］，整体风格［填写］。\n00:00—00:03：［具体情境、人物动作、景别、机位、相机是否移动、声音］。\n00:03—00:07：［人物行动、关键互动、明确回应、景别机位与运镜］。\n00:07—00:11：［产品／内容发挥作用、结果或反差、镜头与声音］。\n00:11—00:15：［核心展示、品牌或地点名、准确文案、行动引导］。\n以上时间分配可自行调整，总和保持15秒，至少4个分镜。检查是否达到3种景别、2种机位角度、1次有效运镜、2个人物动作镜头与1次关键互动。\n产品／界面／地点特点／服务成果累计清楚展示至少3秒，阅读信息连续至少2秒，可与剧情和结尾重合。\n人物外貌、服装、产品、空间与视线前后连续；不要添加未提供的功能、页面和参数。"};
+const MAT_JSON = [{"code": "B01", "kit": "B01", "title": "谷醒燕麦脆棒", "who": "1组 · 食品", "file": "b01-oat.png", "shape": "square", "note": "奶油米色独立条装。全组用这一张包装。", "href": "materials/b01-oat.png?v=branch"}, {"code": "B02", "kit": "B02", "title": "柚见西柚气泡水", "who": "2组 · 食品", "file": "b02-soda.png", "shape": "square", "note": "浅珊瑚粉单罐。全组用这一张罐身。", "href": "materials/b02-soda.png?v=branch"}, {"code": "B03", "kit": "B03", "title": "可可搭巧克力威化", "who": "3组 · 食品", "file": "b03-wafer.png", "shape": "square", "note": "深可可棕小袋。全组用这一张包装。", "href": "materials/b03-wafer.png?v=branch"}, {"code": "B04", "kit": "B04", "title": "BreezePop Mini", "who": "4组 · 电商", "file": "b04-fan.png", "shape": "square", "note": "手持风扇白底图。全组用这一张外形。", "href": "materials/b04-fan.png?v=branch"}, {"code": "B05", "kit": "B05", "title": "LoopBeat Air", "who": "5组 · 电商", "file": "b05-headphones.png", "shape": "square", "note": "头戴式耳机白底图。不另需 App 截图。", "href": "materials/b05-headphones.png?v=branch"}, {"code": "B06", "kit": "B06", "title": "ClearLend", "who": "6组 · 现金贷", "file": "b06-loan.png", "shape": "portrait", "note": "教学界面。金额和期限是选项，没有 APR，不要说成已获批。", "href": "materials/b06-loan.png?v=branch"}, {"code": "B07", "kit": "B07", "title": "Novellair", "who": "7组 · 小说", "file": "b07-novellair.jpg", "shape": "portrait", "note": "Discover 发现页。宣传主体是 App，不要只做某一本书的封面。", "href": "materials/b07-novellair.jpg?v=hd", "play": "https://play.google.com/store/apps/details?id=com.qvon.novellair&hl=en_US"}, {"code": "B08", "kit": "B08", "title": "LANSOR T1", "who": "8组 · 汽车", "file": "b08-car.png", "shape": "wide", "note": "同一辆深海蓝旅行车的侧前方。不要换成别的车。", "href": "materials/b08-car.png?v=branch"}, {"code": "B09", "kit": "B09", "title": "松映湖 Pineveil Lake", "who": "9组 · 文旅", "file": "b09-lake.png", "shape": "wide", "note": "湖面、松林和木栈道。不要加地名水印、票价或酒店。", "href": "materials/b09-lake.png?v=branch"}, {"code": "B10", "kit": "B10", "title": "PandaMobo 官方 Logo", "who": "10组 · 公司宣传", "wait": true, "note": "使用现场已有的官方 Logo。这一页不提供重画的标识，简介可以直接复制。"}];
+const GROUPS = GROUP_JSON;
+const KITS = KIT_JSON;
+
+let cat = "all";
+let mode = "focus";
+let active = "g1";
+
+const lineup = document.getElementById("lineup");
+const glist = document.getElementById("glist");
+const gstage = document.getElementById("gstage");
+const workspace = document.getElementById("workspace");
+const countEl = document.getElementById("count");
+const modeBtn = document.getElementById("modeBtn");
+const qEl = document.getElementById("q");
+const rosterEl = document.getElementById("roster");
+const matgrid = document.getElementById("matgrid");
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+function rich(s) {
+  return escapeHtml(s).replace(/【([^】]+)】/g, '<span class="tag">【$1】</span>');
+}
+function filtered() {
+  const query = qEl.value.trim().toLowerCase();
+  return GROUPS.filter((g) => {
+    if (cat !== "all" && g.catKey !== cat) return false;
+    if (!query) return true;
+    return [g.heading, g.title, g.what, g.people, g.story, g.prep, g.done, g.brand, g.group, g.lang, g.points, g.line, ...(g.names || []), ...(g.poster || []), ...(g.video || []), KITS[g.kit] || ""]
+      .join("\n").toLowerCase().includes(query);
+  });
+}
+function article(g) {
+  const lis = (arr) => arr.map((x) => `<li>${rich(x)}</li>`).join("");
+  const names = `<div class="block"><h4>本组同学</h4><div class="names">${g.names.map((n) => `<span>${escapeHtml(n)}</span>`).join("")}</div></div>`;
+  const play = g.play ? `<p class="jump"><a href="${escapeHtml(g.play)}" target="_blank" rel="noopener">打开 Google Play</a></p>` : "";
+  const kit = `<div class="block"><h4>品牌资料</h4><pre class="sheet">${escapeHtml(KITS[g.kit])}</pre><button class="copy" type="button" data-copy="${g.kit}">复制这段</button>${play}</div>`;
+  return `<article class="brief" id="g-${g.id}" style="--tone:${g.tone}" data-cat="${g.catKey}">
+    <div class="pillrow"><span class="pill">${escapeHtml(g.no)} ${escapeHtml(g.cat)}</span><span class="pill">${escapeHtml(g.asset)}</span></div>
+    <h3>${escapeHtml(g.heading)}</h3>
+    ${names}
+    ${kit}
+    <div class="block"><h4>是什么</h4><p>${rich(g.what)}</p></div>
+    <div class="block"><h4>可用的 3 个表达重点</h4><p>${escapeHtml(g.points)}</p></div>
+    <div class="block"><h4>语言与平台</h4><p>${rich(g.lang)}</p></div>
+    <div class="block"><h4>海报必须讲清</h4><ul>${lis(g.poster)}</ul></div>
+    <div class="block"><h4>视频必须讲清</h4><ul>${lis(g.video)}</ul></div>
+    <div class="block"><h4>人物怎样参与</h4><p>${rich(g.people)}</p></div>
+    <div class="block"><h4>故事起点参考</h4><p>${rich(g.story)}</p></div>
+    <div class="block"><h4>文案灵感</h4><p>${escapeHtml(g.line)}</p></div>
+    <div class="block prep"><h4>开始前领取</h4><p>${rich(g.prep)}</p></div>
+    <div class="block done"><h4>完成判断</h4><p>${rich(g.done)}</p></div>
+    <div class="block"><h4>制作与镜头要求 · 全场统一，本组同样遵守</h4>
+      <div class="specgrid">${SPECS.map((s) => `<span>${escapeHtml(s)}</span>`).join("")}</div>
+      <p class="original">${escapeHtml(SHARED)}</p>
+      <p class="jump"><a href="#rules">分镜、景别、运镜和语言的完整条文在「统一要求」。</a></p>
+    </div>
+  </article>`;
+}
+function renderList(items) {
+  glist.innerHTML = items.map((g) => `
+    <button class="gbtn" type="button" role="option" data-id="${g.id}" aria-selected="${g.id === active ? "true" : "false"}" style="--tone:${g.tone}">
+      <span class="num">${g.no}</span>
+      <span><span class="t">${escapeHtml(g.title)}</span><span class="s">${escapeHtml(g.brand)} · ${escapeHtml(g.names.join("、"))}</span></span>
+    </button>`).join("");
+}
+function renderRoster() {
+  rosterEl.innerHTML = GROUPS.map((g) => `
+    <article class="rcard" style="--tone:${g.tone}">
+      <p class="gh">${g.no} · ${escapeHtml(g.cat)}</p>
+      <p class="brandline">${escapeHtml(g.brand)}</p>
+      <div class="who">${g.names.map((n) => `<button type="button" data-id="${g.id}">${escapeHtml(n)}</button>`).join("")}</div>
+    </article>`).join("");
+}
+function renderMaterials() {
+  matgrid.innerHTML = MAT_JSON.map((m) => {
+    if (m.wait) {
+      return `<article class="mat wait"><div class="body"><div class="code">${m.code}</div><h3>${escapeHtml(m.title)}</h3><p class="who">${escapeHtml(m.who)}</p><p>${escapeHtml(m.note)}</p><pre class="sheet" data-kit="${m.kit}"></pre><button class="copy" type="button" data-copy="${m.kit}">复制这段</button></div></article>`;
+    }
+    const wide = m.shape === "wide" ? " wide" : "";
+    const portrait = m.shape === "portrait" ? " portrait" : "";
+    const play = m.play ? `<a href="${escapeHtml(m.play)}" target="_blank" rel="noopener">Google Play</a>` : "";
+    return `<article class="mat${wide}${portrait}"><a class="shotbox" href="${m.href}" target="_blank" rel="noopener"><img src="${m.href}" alt="${escapeHtml(m.title)}" /></a><div class="body"><div class="code">${m.code}</div><h3>${escapeHtml(m.title)}</h3><p class="who">${escapeHtml(m.who)}</p><p>${escapeHtml(m.note)}</p><pre class="sheet" data-kit="${m.kit}"></pre><button class="copy" type="button" data-copy="${m.kit}">复制这段</button><div class="actions"><a class="primary" href="${m.href}" download="${m.file}">下载</a><a href="${m.href}" target="_blank" rel="noopener">查看</a>${play}</div></div></article>`;
+  }).join("");
+}
+function resetFilters() {
+  cat = "all";
+  qEl.value = "";
+  document.querySelectorAll(".chip").forEach((c) => c.setAttribute("aria-pressed", String(c.dataset.cat === "all")));
+}
+function openGroup(id) {
+  active = id;
+  mode = "focus";
+  resetFilters();
+  history.replaceState(null, "", "#g-" + id);
+  render();
+  requestAnimationFrame(() => {
+    document.getElementById("g-" + id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+}
+function renderLineup() {
+  lineup.innerHTML = GROUPS.map((g) => `
+    <button class="shot" type="button" data-id="${g.id}" style="--tone:${g.tone}">
+      <span class="no">${g.no} · ${escapeHtml(g.cat)}</span>
+      <span class="ttl">${escapeHtml(g.title)}</span>
+    </button>`).join("");
+}
+function render() {
+  const items = filtered();
+  if (!items.some((g) => g.id === active)) active = items[0] ? items[0].id : active;
+  countEl.textContent = items.length ? `当前显示 ${items.length} / 10 组` : "没有匹配的组。换一个姓名或主题再试。";
+  workspace.classList.toggle("all", mode === "all");
+  modeBtn.textContent = mode === "all" ? "回到一组阅读" : "展开全部 10 组";
+  renderList(items);
+  if (!items.length) {
+    gstage.innerHTML = `<p class="empty">没有匹配的组。类别和搜索会一起生效，先切回「全部」，或换一个姓名。</p>`;
+    return;
+  }
+  gstage.innerHTML = mode === "all" ? items.map(article).join("") : article(items.find((g) => g.id === active));
+}
+glist.addEventListener("click", (e) => {
+  const btn = e.target.closest(".gbtn");
+  if (!btn) return;
+  active = btn.dataset.id;
+  history.replaceState(null, "", "#g-" + active);
+  if (mode === "all") {
+    renderList(filtered());
+    document.getElementById("g-" + active)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  } else {
+    render();
+  }
+});
+document.querySelectorAll(".chip").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    cat = btn.dataset.cat;
+    document.querySelectorAll(".chip").forEach((c) => c.setAttribute("aria-pressed", String(c === btn)));
+    render();
+  });
+});
+qEl.addEventListener("input", render);
+lineup.addEventListener("click", (e) => {
+  const btn = e.target.closest(".shot");
+  if (!btn) return;
+  openGroup(btn.dataset.id);
+});
+rosterEl.addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-id]");
+  if (!btn) return;
+  openGroup(btn.dataset.id);
+});
+modeBtn.addEventListener("click", () => {
+  mode = mode === "all" ? "focus" : "all";
+  render();
+  if (mode === "focus") document.getElementById("groups").scrollIntoView({ behavior: "smooth", block: "start" });
+});
+document.addEventListener("click", async (e) => {
+  const btn = e.target.closest("[data-copy]");
+  if (!btn) return;
+  const text = KITS[btn.dataset.copy];
+  if (!text) return;
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand("copy");
+    ta.remove();
+  }
+  btn.classList.add("done");
+  const prev = btn.textContent;
+  btn.textContent = "已复制";
+  setTimeout(() => {
+    btn.textContent = prev === "已复制" ? "复制这段" : prev;
+    btn.classList.remove("done");
+  }, 1400);
+});
+function fillSheets() {
+  document.querySelectorAll("[data-kit]").forEach((el) => {
+    el.textContent = KITS[el.dataset.kit] || "";
+  });
+}
+const hash = location.hash.match(/^#g-(.+)$/);
+if (hash && GROUPS.some((g) => g.id === hash[1])) active = hash[1];
+renderMaterials();
+renderRoster();
+renderLineup();
+fillSheets();
+render();
+
+const navLinks = [...document.querySelectorAll(".navlinks a")];
+const sections = navLinks.map((a) => document.querySelector(a.getAttribute("href"))).filter(Boolean);
+const spy = new IntersectionObserver((entries) => {
+  entries.forEach((entry) => {
+    if (!entry.isIntersecting) return;
+    navLinks.forEach((a) => a.classList.toggle("active", a.getAttribute("href") === "#" + entry.target.id));
+  });
+}, { rootMargin: "-40% 0px -50% 0px", threshold: 0.01 });
+sections.forEach((s) => spy.observe(s));
+</script>
+</body>
+</html>
