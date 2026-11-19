@@ -2,6 +2,7 @@ import {
   parseOutline,
   normalizeOutlineInput,
   inferPresentationTitle,
+  countExplicitPageMarkers,
 } from "@/lib/outline";
 import {
   scoreOutlineConfidence,
@@ -95,14 +96,18 @@ export async function resolveOutline(
         : failDetail;
       warnings.push("llm_normalize_failed");
       if (!llm.ok) warnings.push(`llm_fail:${llm.failure.failReason}`);
+      const explicit = countExplicitPageMarkers(outlineRaw);
+      const trustRules =
+        rulePages.length > 0 &&
+        (explicit === 0 || explicit === rulePages.length);
       return {
-        pages: suspiciousRules ? [] : rulePages,
+        pages: trustRules ? rulePages : [],
         source: "rules",
         confidence: score,
         warnings: [...warnings, ...reasons, ...(suspiciousRules ? ["suspicious_rule_split"] : [])],
         outlineRaw,
         suggestedTitle: inferPresentationTitle(rulePages, outlineRaw),
-        strictPageBoundaries: false,
+        strictPageBoundaries: trustRules && explicit >= 2,
         llmFailed: true,
         llmError: `${hint}（GrsAI 日志「成功」只表示聊天已计费，不等于应用已采纳 JSON。）`,
       };

@@ -24,6 +24,7 @@ import {
   parseOutline,
   inferPresentationTitle,
   hasExplicitPageMarkers,
+  countExplicitPageMarkers,
 } from "@/lib/outline";
 import {
   isSuspiciousRuleSplit,
@@ -93,9 +94,11 @@ function CreateWizard() {
       isSuspiciousRuleSplit(outline, previewPages, previewConf.reasons) ||
       shouldUseLlmNormalize(outline, previewPages, previewConf);
     setGenProgress(
-      useAiFirst
-        ? "复杂格式，正在优先 AI 识别（约 30 秒–2 分钟）…"
-        : "规则快速识别中…"
+      forceNormalize
+        ? "复杂格式，正在 AI 结构化识别（约 30 秒–3 分钟）…"
+        : useAiFirst
+          ? "正在识别大纲（长稿可能调用 AI 辅助）…"
+          : "规则快速识别中…"
     );
     setError("");
     if (!forceNormalize) {
@@ -110,7 +113,8 @@ function CreateWizard() {
         body: JSON.stringify({
           outline,
           autoSplit: !hasExplicitPageMarkers(outline),
-          forceNormalize: useAiFirst,
+          /** 仅「用 AI 重新识别」为 true；勿与 useAiFirst 混用，否则会强制 LLM 并在超时后 0 页 */
+          forceNormalize: forceNormalize,
         }),
         signal: AbortSignal.timeout(outlineTimeoutMs),
       });
@@ -468,14 +472,21 @@ Page 1: Cover  /  【第1页】封面
 1.第一章节
 2.第二章节`}
               />
-              {outline.trim() && (
-                <p className="text-xs text-violet-400">
-                  已识别 {parseOutline(outline).length} 页
-                  {hasExplicitPageMarkers(outline)
-                    ? "（严格按页码标记分页，不会拆成续页）"
-                    : "（格式不确定时，确认大纲将自动用 AI 识别）"}
-                </p>
-              )}
+              {outline.trim() && (() => {
+                const n = parseOutline(outline).length;
+                const marked = countExplicitPageMarkers(outline);
+                const explicit = hasExplicitPageMarkers(outline);
+                return (
+                  <p className="text-xs text-violet-400">
+                    已识别 {n} 页
+                    {explicit && marked > 0 && marked !== n
+                      ? `（稿内有 ${marked} 处页码标题，与解析页数不一致时将尝试 AI 辅助）`
+                      : explicit
+                        ? "（按 ### 01 / 第N页 / Slide 01 等标记分页，不会拆成续页）"
+                        : "（无明确页码时，确认大纲可能调用 AI）"}
+                  </p>
+                );
+              })()}
             </CardContent>
           </Card>
           <div className="flex justify-between">

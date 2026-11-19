@@ -105,7 +105,7 @@ function parseLlmResponse(text: string): LlmOutlineResponse | null {
 }
 
 const OUTLINE_LLM_TIMEOUT_MS =
-  Number(process.env.GRSAI_CHAT_OUTLINE_TIMEOUT_MS) || 180_000;
+  Number(process.env.GRSAI_CHAT_OUTLINE_TIMEOUT_MS) || 300_000;
 
 function outlineLlmMaxTokens(raw: string): number {
   const slideMarkers = raw.match(/(?:^|\n)\s*#{0,3}\s*Slide\s+\d+/gi)?.length ?? 0;

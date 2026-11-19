@@ -90,6 +90,7 @@ export function isSuspiciousRuleSplit(
   if (pages.length === 0) return false;
   const text = normalizeOutlineInput(raw);
   const explicit = countExplicitPageMarkers(text);
+  if (explicit >= 2 && explicit === pages.length) return false;
   const mdHeaders = (text.match(/(?:^|\n)\s*#{1,3}\s+/gm) || []).length;
   const pipeRows = (text.match(/(?:^|\n)\s*\|[^|\n]+\|/gm) || []).length;
   const numberedPipe = (text.match(/(?:^|\n)\s*\d{1,2}\s+\S.{0,24}\s*\|/gm) || [])
@@ -117,13 +118,21 @@ export function shouldUseLlmNormalize(
   minConfidence = 0.85
 ): boolean {
   if (pages.length === 0) return true;
-  if (isSuspiciousRuleSplit(raw, pages, confidence.reasons)) return true;
-  if (confidence.score < minConfidence) return true;
 
   if (hasExplicitPageMarkers(raw)) {
     const expected = countExplicitPageMarkers(raw);
+    if (
+      expected > 0 &&
+      expected === pages.length &&
+      confidence.score >= minConfidence
+    ) {
+      return false;
+    }
     if (expected > 0 && expected !== pages.length) return true;
   }
+
+  if (isSuspiciousRuleSplit(raw, pages, confidence.reasons)) return true;
+  if (confidence.score < minConfidence) return true;
 
   if (pages.length === 1 && raw.length > 800 && looksMultiSlide(raw)) {
     return true;
