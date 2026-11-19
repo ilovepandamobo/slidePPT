@@ -75,26 +75,26 @@ export async function resolveOutline(
       );
     }
     const llm = await normalizeOutlineWithLlm(outlineRaw);
-    if (llm && llm.pages.length > 0) {
+    if (llm.ok && llm.data.pages.length > 0) {
       return {
-        pages: llm.pages,
+        pages: llm.data.pages,
         source: "llm",
         confidence: Math.max(score, 0.9),
-        warnings: [...warnings, ...llm.warnings],
+        warnings: [...warnings, ...llm.data.warnings, `llm_chat_calls:${llm.chatCalls}`],
         outlineRaw,
         suggestedTitle:
-          llm.presentationTitle ||
-          inferPresentationTitle(llm.pages, outlineRaw),
+          llm.data.presentationTitle ||
+          inferPresentationTitle(llm.data.pages, outlineRaw),
         strictPageBoundaries: true,
       };
     }
     if (options?.forceLlm || suspiciousRules) {
+      const failDetail = !llm.ok ? llm.failure.failDetail : "未知错误";
       const hint = suspiciousRules
-        ? "规则分页不可靠（常见误判：表格/Markdown # 拆页）。AI 未返回可用结果，请缩长大纲、改用「第1页：」或 Slide 01 标记后重试。"
-        : rulePages.length > 0
-          ? "AI 未返回可用 JSON（长稿可能超出模型输出上限）。"
-          : "AI 未识别出页面，请检查大纲格式。";
+        ? `规则分页不可靠。${failDetail}`
+        : failDetail;
       warnings.push("llm_normalize_failed");
+      if (!llm.ok) warnings.push(`llm_fail:${llm.failure.failReason}`);
       return {
         pages: suspiciousRules ? [] : rulePages,
         source: "rules",
@@ -104,8 +104,12 @@ export async function resolveOutline(
         suggestedTitle: inferPresentationTitle(rulePages, outlineRaw),
         strictPageBoundaries: false,
         llmFailed: true,
-        llmError: hint,
+        llmError: `${hint}（GrsAI 日志「成功」只表示聊天已计费，不等于应用已采纳 JSON。）`,
       };
+    }
+    if (!llm.ok && needsLlm && !options?.forceLlm && !suspiciousRules) {
+      warnings.push(`llm_fail:${llm.failure.failReason}`);
+      warnings.push(llm.failure.failDetail);
     }
     if (needsLlm && rulePages.length === 0) {
       warnings.push("llm_normalize_failed");

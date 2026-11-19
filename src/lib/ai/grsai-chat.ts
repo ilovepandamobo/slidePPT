@@ -29,6 +29,15 @@ function parseChatModelList(env: string | undefined): string[] {
     .filter(Boolean);
 }
 
+/** 大纲结构化只用单模型，避免一次识别扣多次费且仍无 JSON */
+export function getOutlineChatModel(): string {
+  return (
+    process.env.GRSAI_OUTLINE_CHAT_MODEL?.trim() ||
+    process.env.GRSAI_CHAT_MODEL?.trim() ||
+    DEFAULT_CHAT_MODELS[0]
+  );
+}
+
 export function getChatModelChain(primary?: string | null): string[] {
   const p = primary?.trim() || process.env.GRSAI_CHAT_MODEL?.trim() || DEFAULT_CHAT_MODELS[0];
   const fromEnv = parseChatModelList(process.env.GRSAI_CHAT_MODEL_FALLBACKS);
