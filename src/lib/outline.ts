@@ -46,6 +46,46 @@ const BRACKET_PAGE_HEADER_RE = new RegExp(
   `^[【\\[]\\s*第\\s*${PAGE_NUM}\\s*页\\s*[】\\]]\\s*(.*)$`,
   "i"
 );
+/** `### 01　封面｜标题`、`### 25　系统接入`（须为 # 标题行；勿把 `17-slide` 当成页码） */
+const NUMERIC_SLIDE_DIGIT_RE =
+  /^(?:0?[1-9]|[1-2]\d|25)(?:[｜|：:\u3000]|\s+)(.+)$/;
+/** 备选 `### A　拉美市场` */
+const NUMERIC_SLIDE_APPENDIX_RE =
+  /^(?:备选\s*)?([A-Da-d])(?:[｜|：:\u3000]|\s+)(.+)$/;
+
+function numericSlideTitleFromBody(body: string): string | null {
+  const digitM = body.match(NUMERIC_SLIDE_DIGIT_RE);
+  if (digitM?.[1]?.trim()) return digitM[1].trim();
+  const appM = body.match(NUMERIC_SLIDE_APPENDIX_RE);
+  if (appM?.[2]?.trim()) return appM[2].trim();
+  return null;
+}
+
+function isNumericSlideMarkdownHeader(line: string): boolean {
+  const t = line.trim();
+  if (!/^#{1,3}\s+/.test(t)) return false;
+  const body = normalizeOutlineLine(t);
+  return numericSlideTitleFromBody(body) !== null;
+}
+
+function hasNumericSlideMarkers(raw: string): boolean {
+  let count = 0;
+  for (const line of raw.split("\n")) {
+    if (isNumericSlideMarkdownHeader(line)) {
+      count++;
+      if (count >= 2) return true;
+    }
+  }
+  return false;
+}
+
+function countNumericSlideMarkers(raw: string): number {
+  let count = 0;
+  for (const line of raw.split("\n")) {
+    if (isNumericSlideMarkdownHeader(line)) count++;
+  }
+  return count;
+}
 
 /** 统一全角数字/标点、换行，减少「格式细微不同」导致的漏识别 */
 export function normalizeOutlineInput(raw: string): string {
@@ -86,11 +126,14 @@ function isPageHeaderLine(line: string): boolean {
   if (PAGE_HEADER_LINE_RE.test(trimmed)) return true;
   if (BRACKET_PAGE_HEADER_RE.test(trimmed)) return true;
   if (ENGLISH_PAGE_HEADER_RE.test(trimmed)) return true;
+  if (isNumericSlideMarkdownHeader(line)) return true;
   return false;
 }
 
 function extractPageTitleFromHeader(headerLine: string): string {
   const line = normalizeOutlineLine(headerLine);
+  const numericTitle = numericSlideTitleFromBody(line);
+  if (numericTitle) return numericTitle;
   for (const re of [
     BRACKET_PAGE_HEADER_RE,
     PAGE_HEADER_LINE_RE,
@@ -155,7 +198,8 @@ function parseChinesePageFormat(raw: string): OutlinePage[] | null {
   if (
     !PAGE_MARKER_RE.test(text) &&
     !hasEnglishPageMarkers(text) &&
-    !hasBracketPageMarkers(text)
+    !hasBracketPageMarkers(text) &&
+    !hasNumericSlideMarkers(text)
   ) {
     return null;
   }
@@ -291,7 +335,8 @@ export function hasExplicitPageMarkers(raw: string): boolean {
   return (
     PAGE_MARKER_RE.test(text) ||
     hasEnglishPageMarkers(text) ||
-    hasBracketPageMarkers(text)
+    hasBracketPageMarkers(text) ||
+    hasNumericSlideMarkers(text)
   );
 }
 
@@ -302,7 +347,8 @@ export function countExplicitPageMarkers(raw: string): number {
   for (const line of text.split("\n")) {
     const trimmed = line.replace(/^#+\s*/, "").trim();
     if (!trimmed) continue;
-    if (PAGE_HEADER_LINE_RE.test(trimmed)) count++;
+    if (isNumericSlideMarkdownHeader(line)) count++;
+    else if (PAGE_HEADER_LINE_RE.test(trimmed)) count++;
     else if (BRACKET_PAGE_HEADER_RE.test(trimmed)) count++;
     else if (ENGLISH_PAGE_HEADER_RE.test(trimmed)) count++;
   }

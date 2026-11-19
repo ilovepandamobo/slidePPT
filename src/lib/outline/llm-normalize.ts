@@ -109,9 +109,18 @@ const OUTLINE_LLM_TIMEOUT_MS =
 
 function outlineLlmMaxTokens(raw: string): number {
   const slideMarkers = raw.match(/(?:^|\n)\s*#{0,3}\s*Slide\s+\d+/gi)?.length ?? 0;
+  const numHeaders =
+    raw.match(
+      /(?:^|\n)\s*#{1,3}\s*(?:(?:0?[1-9]|[1-2]\d|25)(?:[｜|：:\u3000]|\s+)|(?:备选\s*)?[A-Da-d](?:[｜|：:\u3000]|\s+))/gm
+    )?.length ?? 0;
   const cnMarkers = raw.match(/第\s*\d+\s*页/g)?.length ?? 0;
   const pipeRows = (raw.match(/(?:^|\n)\s*\|[^|\n]+\|/gm) || []).length;
-  const estPages = Math.max(slideMarkers, cnMarkers, Math.ceil(pipeRows / 2));
+  const estPages = Math.max(
+    slideMarkers,
+    numHeaders,
+    cnMarkers,
+    Math.ceil(pipeRows / 2)
+  );
   if (estPages >= 25 || raw.length > 40_000) return 28_000;
   if (estPages >= 15 || raw.length > 25_000) return 20_000;
   if (estPages >= 8 || raw.length > 15_000) return 12_000;

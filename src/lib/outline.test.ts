@@ -130,6 +130,44 @@ Build an editable 16:9 PowerPoint in English.
 **WhatsApp in Indonesia**
 `;
 
+const WHATSAPP_NUMERIC_SLIDE_SNIPPET = `# 航旅出海 WhatsApp 行业通案
+
+### 原稿改版对照
+
+| 长安原稿 | 航旅通案 |
+|---|---|
+
+## 第一章　平台
+
+### 01　封面｜航空公司出海 WhatsApp 行业方案
+
+- **上屏**　主标题
+
+### 02　目录
+
+- **上屏**　01 WhatsApp
+
+### 03　WhatsApp Business Platform 产品简介
+
+- **上屏**　定位一句话
+
+### A　拉美市场｜替换区域页
+
+- **上屏**　巴西数据
+`;
+
+describe("parseOutline ### 01 numeric slide headers (航旅通案)", () => {
+  it("splits only ### 01–25 / A–D lines, not every markdown ###", () => {
+    assert.equal(hasExplicitPageMarkers(WHATSAPP_NUMERIC_SLIDE_SNIPPET), true);
+    const pages = parseOutline(WHATSAPP_NUMERIC_SLIDE_SNIPPET);
+    assert.equal(pages.length, 4);
+    assert.equal(pages[0].title, "封面|航空公司出海 WhatsApp 行业方案");
+    assert.equal(pages[1].title, "目录");
+    assert.ok(pages[0].content.includes("主标题"));
+    assert.equal(pages[3].title.includes("拉美市场"), true);
+  });
+});
+
 describe("parseOutline english Slide NN markdown headers", () => {
   it("parses ### Slide NN as page boundaries, not every markdown heading", () => {
     assert.equal(hasExplicitPageMarkers(ENGLISH_SLIDE_MD), true);
