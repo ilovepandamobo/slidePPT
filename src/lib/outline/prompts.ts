@@ -37,6 +37,17 @@ ${raw}
 ---`;
 }
 
+/** 长稿分块：沿用同一套结构化规则，只缩小本次送入的原文范围 */
+export function buildOutlineNormalizeChunkUserPrompt(
+  chunkRaw: string,
+  meta: { globalStart: number; globalEnd: number; totalPages: number }
+): string {
+  return `${buildOutlineNormalizeUserPrompt(chunkRaw)}
+
+【分批说明】本次为整份大纲的第 ${meta.globalStart}–${meta.globalEnd} 页（全稿约 ${meta.totalPages} 页）。
+仍须完整输出每页 content 与 notes，不得省略本段原文信息；pages 数量须与本段实际页数一致。`;
+}
+
 export const OUTLINE_REFINE_SYSTEM_PROMPT = `你是 PPT 大纲校对器。规则引擎已按用户页码拆好每页正文。
 
 任务：根据每页摘要，只做三件事：

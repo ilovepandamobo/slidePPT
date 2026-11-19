@@ -10,7 +10,7 @@ import {
   isSuspiciousRuleSplit,
 } from "@/lib/outline/confidence";
 import { normalizeOutlineWithLlm } from "@/lib/outline/llm-normalize";
-import { refineRulePagesWithLlm } from "@/lib/outline/llm-refine";
+import { splitOutlineRawIntoPageBlocks } from "@/lib/outline";
 import type { OutlinePage } from "@/types";
 
 export type OutlineResolveSource = "rules" | "llm";
@@ -76,24 +76,22 @@ export async function resolveOutline(
         reasons
       );
     }
-    const explicit = countExplicitPageMarkers(outlineRaw);
-    const useRuleRefine =
-      Boolean(options?.forceLlm) &&
-      rulePages.length >= 8 &&
-      explicit >= 2 &&
-      explicit === rulePages.length;
+    const pageBlocks = splitOutlineRawIntoPageBlocks(outlineRaw);
+    const useChunked =
+      Boolean(pageBlocks?.length) &&
+      (pageBlocks!.length >= 8 || outlineRaw.length > 12_000);
 
     if (options?.forceLlm) {
-      console.info("[resolveOutline] force LLM", {
+      console.info("[resolveOutline] force LLM full normalize", {
         rulePages: rulePages.length,
-        explicit,
-        useRuleRefine,
+        useChunked,
+        chunks: pageBlocks
+          ? Math.ceil(pageBlocks.length / (Number(process.env.OUTLINE_LLM_CHUNK_PAGES) || 5))
+          : 0,
       });
     }
 
-    const llm = useRuleRefine
-      ? await refineRulePagesWithLlm(outlineRaw, rulePages)
-      : await normalizeOutlineWithLlm(outlineRaw);
+    const llm = await normalizeOutlineWithLlm(outlineRaw, { useChunked });
     if (llm.ok && llm.data.pages.length > 0) {
       return {
         pages: llm.data.pages,

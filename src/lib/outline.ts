@@ -189,21 +189,17 @@ function parsePageBlock(block: string): OutlinePage {
   };
 }
 
-/**
- * 解析「第N页：标题」/「第 1 页：封面」/「第1页封面」/「Page 1:」/「【第1页】」等
- * 仅在行首识别页标记，避免正文里的「参见第2页」误拆
- */
-function parseChinesePageFormat(raw: string): OutlinePage[] | null {
-  const text = normalizeOutlineInput(raw);
-  if (
-    !PAGE_MARKER_RE.test(text) &&
-    !hasEnglishPageMarkers(text) &&
-    !hasBracketPageMarkers(text) &&
-    !hasNumericSlideMarkers(text)
-  ) {
-    return null;
-  }
+function hasAnyExplicitSlideMarkers(text: string): boolean {
+  return (
+    PAGE_MARKER_RE.test(text) ||
+    hasEnglishPageMarkers(text) ||
+    hasBracketPageMarkers(text) ||
+    hasNumericSlideMarkers(text)
+  );
+}
 
+/** 按行首页标记切出原文块（供分块 AI 与解析复用） */
+function collectExplicitPageBlocks(text: string): string[] {
   const lines = text.split("\n");
   const blocks: string[] = [];
   let current: string[] = [];
@@ -226,7 +222,26 @@ function parseChinesePageFormat(raw: string): OutlinePage[] | null {
     }
   }
   flush();
+  return blocks;
+}
 
+/** 显式页标记下的每页原文（### 01 / 第N页 / Slide NN），用于长稿分块 LLM */
+export function splitOutlineRawIntoPageBlocks(raw: string): string[] | null {
+  const text = normalizeOutlineInput(raw);
+  if (!hasAnyExplicitSlideMarkers(text)) return null;
+  const blocks = collectExplicitPageBlocks(text);
+  return blocks.length > 0 ? blocks : null;
+}
+
+/**
+ * 解析「第N页：标题」/「第 1 页：封面」/「第1页封面」/「Page 1:」/「【第1页】」等
+ * 仅在行首识别页标记，避免正文里的「参见第2页」误拆
+ */
+function parseChinesePageFormat(raw: string): OutlinePage[] | null {
+  const text = normalizeOutlineInput(raw);
+  if (!hasAnyExplicitSlideMarkers(text)) return null;
+
+  const blocks = collectExplicitPageBlocks(text);
   if (blocks.length === 0) return null;
   return blocks.map(parsePageBlock);
 }

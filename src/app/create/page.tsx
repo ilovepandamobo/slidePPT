@@ -105,7 +105,7 @@ function CreateWizard() {
     setGenProgress(
       forceNormalize
         ? previewPages.length >= 8 && hasExplicitPageMarkers(raw)
-          ? `正在 AI 精炼标题与页型（${previewPages.length} 页，约 30–90 秒）…`
+          ? `正在 AI 结构化识别（${previewPages.length} 页，分批处理，约 2–4 分钟）…`
           : "复杂格式，正在 AI 结构化识别（约 30 秒–3 分钟）…"
         : useAiFirst
           ? "正在识别大纲（长稿可能调用 AI 辅助）…"

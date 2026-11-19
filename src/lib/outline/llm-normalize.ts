@@ -8,7 +8,9 @@ import {
   OUTLINE_NORMALIZE_SYSTEM_PROMPT,
   buildOutlineNormalizeUserPrompt,
   buildOutlineNormalizeRetryPrompt,
+  buildOutlineNormalizeChunkUserPrompt,
 } from "@/lib/outline/prompts";
+import { splitOutlineRawIntoPageBlocks } from "@/lib/outline";
 import {
   LlmOutlineResponseSchema,
   llmPagesToOutlinePages,
@@ -106,6 +108,17 @@ function parseLlmResponse(text: string): LlmOutlineResponse | null {
 
 const OUTLINE_LLM_TIMEOUT_MS =
   Number(process.env.GRSAI_CHAT_OUTLINE_TIMEOUT_MS) || 300_000;
+const CHUNK_PAGES =
+  Number(process.env.OUTLINE_LLM_CHUNK_PAGES) || 5;
+const CHUNK_CONCURRENCY = Math.max(
+  1,
+  Math.min(3, Number(process.env.OUTLINE_LLM_CHUNK_CONCURRENCY) || 2)
+);
+
+export type NormalizeLlmOptions = {
+  /** 长稿按页界分块，每块仍用完整结构化 prompt（与单次识别指令相同） */
+  useChunked?: boolean;
+};
 
 function outlineLlmMaxTokens(raw: string): number {
   const slideMarkers = raw.match(/(?:^|\n)\s*#{0,3}\s*Slide\s+\d+/gi)?.length ?? 0;
@@ -182,38 +195,13 @@ function finishOk(
   };
 }
 
-export async function normalizeOutlineWithLlm(
-  raw: string
+async function normalizeOutlineSinglePass(
+  trimmed: string,
+  buildUser: (text: string) => string = buildOutlineNormalizeUserPrompt
 ): Promise<LlmNormalizeOutcome> {
-  if (!isGrsaiChatConfigured()) {
-    return {
-      ok: false,
-      failure: {
-        failReason: "not_configured",
-        failDetail: "未配置 GRSAI_API_KEY",
-        chatCalls: 0,
-      },
-    };
-  }
-
-  const trimmed = normalizeOutlineInput(raw);
-  if (!trimmed || trimmed.length > MAX_OUTLINE_CHARS) {
-    return {
-      ok: false,
-      failure: {
-        failReason: "too_long",
-        failDetail: `大纲超过 ${MAX_OUTLINE_CHARS} 字`,
-        chatCalls: 0,
-      },
-    };
-  }
-
   let chatCalls = 0;
 
-  let content = await callNormalizeLlm(
-    buildOutlineNormalizeUserPrompt(trimmed),
-    trimmed
-  );
+  let content = await callNormalizeLlm(buildUser(trimmed), trimmed);
   chatCalls++;
   if (!content) {
     return {
@@ -300,6 +288,154 @@ export async function normalizeOutlineWithLlm(
   }
 
   return finishOk(parsed, [], chatCalls);
+}
+
+async function normalizeOutlineChunked(
+  fullRaw: string,
+  pageBlocks: string[]
+): Promise<LlmNormalizeOutcome> {
+  const totalPages = pageBlocks.length;
+  const chunkSpecs: { text: string; start: number; end: number }[] = [];
+  for (let i = 0; i < pageBlocks.length; i += CHUNK_PAGES) {
+    const slice = pageBlocks.slice(i, i + CHUNK_PAGES);
+    chunkSpecs.push({
+      text: slice.join("\n\n"),
+      start: i + 1,
+      end: i + slice.length,
+    });
+  }
+
+  console.info(
+    "[outline-llm] chunked normalize",
+    totalPages,
+    "pages",
+    chunkSpecs.length,
+    "chunks"
+  );
+
+  const mergedPages: OutlinePage[] = [];
+  let chatCalls = 0;
+  let presentationTitle = "";
+  const warnings: string[] = ["llm_chunked", `chunks:${chunkSpecs.length}`];
+
+  for (let c = 0; c < chunkSpecs.length; c += CHUNK_CONCURRENCY) {
+    const batch = chunkSpecs.slice(c, c + CHUNK_CONCURRENCY);
+    const batchResults = await Promise.all(
+      batch.map(async (spec) => {
+        const user = buildOutlineNormalizeChunkUserPrompt(spec.text, {
+          globalStart: spec.start,
+          globalEnd: spec.end,
+          totalPages,
+        });
+        return normalizeOutlineSinglePass(spec.text, () => user);
+      })
+    );
+
+    for (let j = 0; j < batchResults.length; j++) {
+      const spec = batch[j]!;
+      const out = batchResults[j]!;
+      chatCalls += out.ok ? out.chatCalls : out.failure.chatCalls;
+      if (!out.ok) {
+        return {
+          ok: false,
+          failure: {
+            ...out.failure,
+            failDetail: `第 ${spec.start}–${spec.end} 页批次失败：${out.failure.failDetail}`,
+            chatCalls,
+          },
+        };
+      }
+      if (!presentationTitle && out.data.presentationTitle) {
+        presentationTitle = out.data.presentationTitle;
+      }
+      mergedPages.push(...out.data.pages);
+      warnings.push(...out.data.warnings);
+    }
+  }
+
+  if (mergedPages.length !== totalPages) {
+    return {
+      ok: false,
+      failure: {
+        failReason: "validation_failed",
+        failDetail: `分块合并后 ${mergedPages.length} 页，预期 ${totalPages} 页`,
+        chatCalls,
+      },
+    };
+  }
+
+  const merged: LlmOutlineResponse = {
+    pageCount: totalPages,
+    presentationTitle: presentationTitle || undefined,
+    pages: mergedPages.map((p, i) => ({
+      pageType: p.pageType,
+      title: p.title,
+      content: p.content,
+      notes: p.notes,
+      pageIndex: i + 1,
+    })),
+    warnings,
+  };
+
+  const errors = validateLlmOutline(fullRaw, merged);
+  if (errors.length > 0 && !canRelaxedAccept(errors)) {
+    return {
+      ok: false,
+      failure: {
+        failReason: "validation_failed",
+        failDetail: `全稿校验：${errors.join("、")}`,
+        chatCalls,
+      },
+    };
+  }
+  if (errors.length > 0) {
+    warnings.push(`relaxed:${errors.join(",")}`);
+  }
+
+  return finishOk(merged, warnings, chatCalls);
+}
+
+function shouldUseChunkedNormalize(
+  trimmed: string,
+  pageBlocks: string[] | null
+): boolean {
+  if (!pageBlocks || pageBlocks.length < 6) return false;
+  return pageBlocks.length >= 8 || trimmed.length > 12_000;
+}
+
+export async function normalizeOutlineWithLlm(
+  raw: string,
+  options?: NormalizeLlmOptions
+): Promise<LlmNormalizeOutcome> {
+  if (!isGrsaiChatConfigured()) {
+    return {
+      ok: false,
+      failure: {
+        failReason: "not_configured",
+        failDetail: "未配置 GRSAI_API_KEY",
+        chatCalls: 0,
+      },
+    };
+  }
+
+  const trimmed = normalizeOutlineInput(raw);
+  if (!trimmed || trimmed.length > MAX_OUTLINE_CHARS) {
+    return {
+      ok: false,
+      failure: {
+        failReason: "too_long",
+        failDetail: `大纲超过 ${MAX_OUTLINE_CHARS} 字`,
+        chatCalls: 0,
+      },
+    };
+  }
+
+  const pageBlocks = splitOutlineRawIntoPageBlocks(trimmed);
+  if (options?.useChunked && shouldUseChunkedNormalize(trimmed, pageBlocks)) {
+    return normalizeOutlineChunked(trimmed, pageBlocks!);
+  }
+
+  return normalizeOutlineSinglePass(trimmed);
 }
 
 /** @deprecated 供旧调用；优先用 normalizeOutlineWithLlm 的 outcome */
