@@ -102,7 +102,7 @@ function CreateWizard() {
       forceNormalize ||
       isSuspiciousRuleSplit(raw, previewPages, previewConf.reasons) ||
       shouldUseLlmNormalize(raw, previewPages, previewConf);
-  setGenProgress(
+    setGenProgress(
       forceNormalize
         ? previewPages.length >= 8 && hasExplicitPageMarkers(raw)
           ? `正在 AI 精炼标题与页型（${previewPages.length} 页，约 30–90 秒）…`
