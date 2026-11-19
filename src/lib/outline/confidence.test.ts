@@ -4,6 +4,7 @@ import {
   scoreOutlineConfidence,
   shouldUseLlmNormalize,
   looksMultiSlide,
+  isSuspiciousRuleSplit,
 } from "./confidence";
 import { parseOutline } from "../outline";
 import { validateLlmOutline } from "./llm-normalize";
@@ -37,6 +38,26 @@ describe("outline confidence", () => {
     const conf = scoreOutlineConfidence(raw, pages);
     assert.ok(conf.score >= 0.85);
     assert.equal(shouldUseLlmNormalize(raw, pages, conf), false);
+  });
+
+  it("treats pipe table markdown as suspicious rule split", () => {
+    const raw = `# 航空公司方案
+## 第一章 市场
+| 01 封面 | 标题 |
+| 20 航变 | 旅程 |
+### 小节 A
+内容 A
+### 小节 B
+内容 B
+### 小节 C
+内容 C
+### 小节 D
+内容 D`;
+    const pages = parseOutline(raw);
+    assert.ok(pages.length >= 4);
+    const conf = scoreOutlineConfidence(raw, pages);
+    assert.equal(isSuspiciousRuleSplit(raw, pages, conf.reasons), true);
+    assert.equal(shouldUseLlmNormalize(raw, pages, conf), true);
   });
 
   it("flags ambiguous format as low confidence", () => {

@@ -6,6 +6,7 @@ import {
 import {
   scoreOutlineConfidence,
   shouldUseLlmNormalize,
+  isSuspiciousRuleSplit,
 } from "@/lib/outline/confidence";
 import { normalizeOutlineWithLlm } from "@/lib/outline/llm-normalize";
 import type { OutlinePage } from "@/types";
@@ -52,10 +53,12 @@ export async function resolveOutline(
 
   const rulePages = parseOutline(outlineRaw);
   const { score, reasons } = scoreOutlineConfidence(outlineRaw, rulePages);
+  const suspiciousRules = isSuspiciousRuleSplit(outlineRaw, rulePages, reasons);
 
   const needsLlm =
     !options?.skipLlm &&
     (options?.forceLlm ||
+      suspiciousRules ||
       shouldUseLlmNormalize(
         outlineRaw,
         rulePages,
@@ -64,6 +67,13 @@ export async function resolveOutline(
       ));
 
   if (needsLlm) {
+    if (suspiciousRules) {
+      console.info(
+        "[resolveOutline] suspicious rule split, using LLM first",
+        rulePages.length,
+        reasons
+      );
+    }
     const llm = await normalizeOutlineWithLlm(outlineRaw);
     if (llm && llm.pages.length > 0) {
       return {
@@ -78,20 +88,21 @@ export async function resolveOutline(
         strictPageBoundaries: true,
       };
     }
-    if (options?.forceLlm) {
-      const hint =
-        rulePages.length > 0
-          ? "AI 未返回可用 JSON（长稿可能超出模型输出上限）。仍显示规则分页。"
+    if (options?.forceLlm || suspiciousRules) {
+      const hint = suspiciousRules
+        ? "规则分页不可靠（常见误判：表格/Markdown # 拆页）。AI 未返回可用结果，请缩长大纲、改用「第1页：」或 Slide 01 标记后重试。"
+        : rulePages.length > 0
+          ? "AI 未返回可用 JSON（长稿可能超出模型输出上限）。"
           : "AI 未识别出页面，请检查大纲格式。";
       warnings.push("llm_normalize_failed");
       return {
-        pages: rulePages,
+        pages: suspiciousRules ? [] : rulePages,
         source: "rules",
         confidence: score,
-        warnings: [...warnings, ...reasons],
+        warnings: [...warnings, ...reasons, ...(suspiciousRules ? ["suspicious_rule_split"] : [])],
         outlineRaw,
         suggestedTitle: inferPresentationTitle(rulePages, outlineRaw),
-        strictPageBoundaries: rulePages.length > 0 && score >= 0.85,
+        strictPageBoundaries: false,
         llmFailed: true,
         llmError: hint,
       };

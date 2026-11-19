@@ -144,6 +144,14 @@ export async function normalizeOutlineWithLlm(
   }
 
   let errors = validateLlmOutline(trimmed, parsed);
+  if (
+    errors.length === 1 &&
+    errors[0] === "page_count_mismatch" &&
+    parsed.pages.length > 0
+  ) {
+    parsed = { ...parsed, pageCount: parsed.pages.length };
+    errors = validateLlmOutline(trimmed, parsed);
+  }
   if (errors.length > 0) {
     console.warn("[outline-llm] validate errors, retry once:", errors.join(","));
     content = await callNormalizeLlm(

@@ -81,6 +81,35 @@ export function scoreOutlineConfidence(
   return { score: clamp(score, 0, 1), reasons };
 }
 
+/** 规则把 Markdown # / 表格行误拆成很多页，但置信度仍偏高 */
+export function isSuspiciousRuleSplit(
+  raw: string,
+  pages: OutlinePage[],
+  reasons: string[] = []
+): boolean {
+  if (pages.length === 0) return false;
+  const text = normalizeOutlineInput(raw);
+  const explicit = countExplicitPageMarkers(text);
+  const mdHeaders = (text.match(/(?:^|\n)\s*#{1,3}\s+/gm) || []).length;
+  const pipeRows = (text.match(/(?:^|\n)\s*\|[^|\n]+\|/gm) || []).length;
+  const numberedPipe = (text.match(/(?:^|\n)\s*\d{1,2}\s+\S.{0,24}\s*\|/gm) || [])
+    .length;
+
+  if (pages.length >= 10 && explicit === 0) return true;
+  if (pages.length >= 6 && mdHeaders >= 3 && explicit < 2) return true;
+  if (pipeRows >= 4 && explicit === 0) return true;
+  if (numberedPipe >= 3 && explicit === 0) return true;
+  if (reasons.some((r) => r.startsWith("marker_count_mismatch"))) return true;
+  if (reasons.includes("suspicious_short_page") && pages.length >= 8) return true;
+
+  const chapterTitles = pages.filter((p) =>
+    /^第[一二三四五六七八九十百零\d]+章/.test(p.title)
+  ).length;
+  if (chapterTitles >= 2 && explicit === 0 && pages.length >= 6) return true;
+
+  return false;
+}
+
 export function shouldUseLlmNormalize(
   raw: string,
   pages: OutlinePage[],
@@ -88,6 +117,7 @@ export function shouldUseLlmNormalize(
   minConfidence = 0.85
 ): boolean {
   if (pages.length === 0) return true;
+  if (isSuspiciousRuleSplit(raw, pages, confidence.reasons)) return true;
   if (confidence.score < minConfidence) return true;
 
   if (hasExplicitPageMarkers(raw)) {

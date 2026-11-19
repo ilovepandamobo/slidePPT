@@ -25,6 +25,11 @@ import {
   inferPresentationTitle,
   hasExplicitPageMarkers,
 } from "@/lib/outline";
+import {
+  isSuspiciousRuleSplit,
+  shouldUseLlmNormalize,
+  scoreOutlineConfidence,
+} from "@/lib/outline/confidence";
 import type { TemplateItem, OutlinePage } from "@/types";
 import { cn } from "@/lib/utils";
 import { ImageQualitySelect } from "@/components/create/image-quality-select";
@@ -81,8 +86,16 @@ function CreateWizard() {
   async function suggestOutline(forceNormalize = false) {
     setLoadingMode("outline");
     setLoading(true);
+    const previewPages = parseOutline(outline);
+    const previewConf = scoreOutlineConfidence(outline, previewPages);
+    const useAiFirst =
+      forceNormalize ||
+      isSuspiciousRuleSplit(outline, previewPages, previewConf.reasons) ||
+      shouldUseLlmNormalize(outline, previewPages, previewConf);
     setGenProgress(
-      forceNormalize ? "AI 结构化大纲中（长稿可能需要 1–3 分钟）…" : ""
+      useAiFirst
+        ? "复杂格式，正在优先 AI 识别（约 30 秒–2 分钟）…"
+        : "规则快速识别中…"
     );
     setError("");
     if (!forceNormalize) {
@@ -97,12 +110,15 @@ function CreateWizard() {
         body: JSON.stringify({
           outline,
           autoSplit: !hasExplicitPageMarkers(outline),
-          forceNormalize,
+          forceNormalize: useAiFirst,
         }),
         signal: AbortSignal.timeout(outlineTimeoutMs),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
+      if (data.pages?.length === 0 && data.llmFailed) {
+        throw new Error(data.llmError || "AI 识别失败");
+      }
       setPages(data.pages);
       setResolveSource(data.source ?? "rules");
       setResolveConfidence(
