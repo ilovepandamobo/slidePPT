@@ -91,7 +91,14 @@ export async function resolveOutline(
       });
     }
 
-    const llm = await normalizeOutlineWithLlm(outlineRaw, { useChunked });
+    const llm = await normalizeOutlineWithLlm(outlineRaw, {
+      useChunked,
+      fallbackPages:
+        rulePages.length > 0 &&
+        pageBlocks?.length === rulePages.length
+          ? rulePages
+          : undefined,
+    });
     if (llm.ok && llm.data.pages.length > 0) {
       return {
         pages: llm.data.pages,

@@ -108,20 +108,59 @@ function parseLlmResponse(text: string): LlmOutlineResponse | null {
 
 const OUTLINE_LLM_TIMEOUT_MS =
   Number(process.env.GRSAI_CHAT_OUTLINE_TIMEOUT_MS) || 300_000;
-const CHUNK_PAGES =
-  Number(process.env.OUTLINE_LLM_CHUNK_PAGES) || 5;
+const CHUNK_MAX_PAGES =
+  Number(process.env.OUTLINE_LLM_CHUNK_PAGES) || 4;
+const CHUNK_MAX_CHARS =
+  Number(process.env.OUTLINE_LLM_CHUNK_MAX_CHARS) || 3_800;
 const CHUNK_CONCURRENCY = Math.max(
   1,
-  Math.min(8, Number(process.env.OUTLINE_LLM_CHUNK_CONCURRENCY) || 6)
+  Math.min(8, Number(process.env.OUTLINE_LLM_CHUNK_CONCURRENCY) || 4)
 );
 
 const CHUNK_LLM_TIMEOUT_MS =
   Number(process.env.GRSAI_CHAT_CHUNK_TIMEOUT_MS) || 150_000;
+const CHUNK_RETRY_EXTRA_MS = 60_000;
 
 export type NormalizeLlmOptions = {
   /** 长稿按页界分块，每块仍用完整结构化 prompt（与单次识别指令相同） */
   useChunked?: boolean;
+  /** 某批次 GrsAI 无响应时，用规则页填补该段 */
+  fallbackPages?: OutlinePage[];
 };
+
+type ChunkSpec = { text: string; start: number; end: number };
+
+function buildChunkSpecs(pageBlocks: string[]): ChunkSpec[] {
+  const specs: ChunkSpec[] = [];
+  let batch: string[] = [];
+  let chars = 0;
+  let start = 1;
+
+  const flush = () => {
+    if (batch.length === 0) return;
+    specs.push({
+      text: batch.join("\n\n"),
+      start,
+      end: start + batch.length - 1,
+    });
+    start += batch.length;
+    batch = [];
+    chars = 0;
+  };
+
+  for (const block of pageBlocks) {
+    const blockLen = block.length;
+    const wouldExceed =
+      batch.length > 0 &&
+      (batch.length >= CHUNK_MAX_PAGES ||
+        chars + blockLen + 2 > CHUNK_MAX_CHARS);
+    if (wouldExceed) flush();
+    batch.push(block);
+    chars += blockLen + 2;
+  }
+  flush();
+  return specs;
+}
 
 function outlineLlmMaxTokens(raw: string): number {
   const slideMarkers = raw.match(/(?:^|\n)\s*#{0,3}\s*Slide\s+\d+/gi)?.length ?? 0;
@@ -296,27 +335,159 @@ async function normalizeOutlineSinglePass(
   return finishOk(parsed, [], chatCalls);
 }
 
+async function tryChunkNormalize(
+  spec: ChunkSpec,
+  totalPages: number,
+  maxAttempts = 3
+): Promise<
+  | { ok: true; pages: OutlinePage[]; calls: number; title?: string; warnings: string[] }
+  | { ok: false; calls: number; failure: LlmNormalizeFailure }
+> {
+  let chatCalls = 0;
+  let lastFailure: LlmNormalizeFailure = {
+    failReason: "chat_empty",
+    failDetail: "无响应",
+    chatCalls: 0,
+  };
+
+  for (let tryNum = 0; tryNum < maxAttempts; tryNum++) {
+    const timeout = CHUNK_LLM_TIMEOUT_MS + tryNum * CHUNK_RETRY_EXTRA_MS;
+    const user = buildOutlineNormalizeChunkUserPrompt(spec.text, {
+      globalStart: spec.start,
+      globalEnd: spec.end,
+      totalPages,
+    });
+    const out = await normalizeOutlineSinglePass(
+      spec.text,
+      () => user,
+      timeout
+    );
+    chatCalls += out.ok ? out.chatCalls : out.failure.chatCalls;
+    if (out.ok) {
+      return {
+        ok: true,
+        pages: out.data.pages,
+        calls: chatCalls,
+        title: out.data.presentationTitle,
+        warnings: out.data.warnings,
+      };
+    }
+    lastFailure = { ...out.failure, chatCalls };
+    const retriable =
+      out.failure.failReason === "chat_empty" ||
+      out.failure.failReason === "parse_failed";
+    if (!retriable) break;
+    console.warn(
+      `[outline-llm] chunk ${spec.start}-${spec.end} retry ${tryNum + 1}`
+    );
+  }
+
+  return { ok: false, calls: chatCalls, failure: lastFailure };
+}
+
+async function runOneChunkWithRetry(
+  spec: ChunkSpec,
+  totalPages: number,
+  pageBlocks: string[],
+  fallbackPages?: OutlinePage[]
+): Promise<
+  | { ok: true; pages: OutlinePage[]; calls: number; title?: string; extraWarnings: string[] }
+  | { ok: false; failure: LlmNormalizeFailure }
+> {
+  const batch = await tryChunkNormalize(spec, totalPages);
+  if (batch.ok) {
+    const expected = spec.end - spec.start + 1;
+    if (batch.pages.length === expected) {
+      return {
+        ok: true,
+        pages: batch.pages,
+        calls: batch.calls,
+        title: batch.title,
+        extraWarnings: batch.warnings,
+      };
+    }
+  }
+
+  let chatCalls = batch.calls;
+  const extraWarnings: string[] = [];
+
+  if (spec.end > spec.start) {
+    const pages: OutlinePage[] = [];
+    for (let i = spec.start; i <= spec.end; i++) {
+      const singleSpec: ChunkSpec = {
+        text: pageBlocks[i - 1]!,
+        start: i,
+        end: i,
+      };
+      const one = await tryChunkNormalize(singleSpec, totalPages, 2);
+      chatCalls += one.calls;
+      if (one.ok && one.pages.length >= 1) {
+        pages.push(one.pages[0]!);
+        if (one.title && i === spec.start) {
+          extraWarnings.push(...one.warnings);
+        }
+        continue;
+      }
+      const fb = fallbackPages?.[i - 1];
+      if (fb) {
+        pages.push(fb);
+        extraWarnings.push(`chunk_rules_fallback:${i}`);
+        continue;
+      }
+      const fail = !one.ok
+        ? one.failure
+        : !batch.ok
+          ? batch.failure
+          : {
+              failReason: "validation_failed" as const,
+              failDetail: "批次页数不匹配",
+              chatCalls,
+            };
+      return {
+        ok: false,
+        failure: { ...fail, failDetail: `第 ${i} 页 AI 无响应`, chatCalls },
+      };
+    }
+    return { ok: true, pages, calls: chatCalls, extraWarnings };
+  }
+
+  if (fallbackPages?.[spec.start - 1]) {
+    return {
+      ok: true,
+      pages: [fallbackPages[spec.start - 1]!],
+      calls: chatCalls,
+      extraWarnings: [`chunk_rules_fallback:${spec.start}-${spec.end}`],
+    };
+  }
+
+  if (!batch.ok) {
+    return { ok: false, failure: { ...batch.failure, chatCalls } };
+  }
+  return {
+    ok: false,
+    failure: {
+      failReason: "validation_failed",
+      failDetail: "单页批次未产出结果",
+      chatCalls,
+    },
+  };
+}
+
 async function normalizeOutlineChunked(
   fullRaw: string,
-  pageBlocks: string[]
+  pageBlocks: string[],
+  fallbackPages?: OutlinePage[]
 ): Promise<LlmNormalizeOutcome> {
   const totalPages = pageBlocks.length;
-  const chunkSpecs: { text: string; start: number; end: number }[] = [];
-  for (let i = 0; i < pageBlocks.length; i += CHUNK_PAGES) {
-    const slice = pageBlocks.slice(i, i + CHUNK_PAGES);
-    chunkSpecs.push({
-      text: slice.join("\n\n"),
-      start: i + 1,
-      end: i + slice.length,
-    });
-  }
+  const chunkSpecs = buildChunkSpecs(pageBlocks);
 
   console.info(
     "[outline-llm] chunked normalize",
     totalPages,
     "pages",
     chunkSpecs.length,
-    "chunks"
+    "chunks",
+    chunkSpecs.map((s) => `${s.start}-${s.end}`).join(",")
   );
 
   const mergedPages: OutlinePage[] = [];
@@ -328,24 +499,15 @@ async function normalizeOutlineChunked(
   for (let c = 0; c < chunkSpecs.length; c += waveSize) {
     const batch = chunkSpecs.slice(c, c + waveSize);
     const batchResults = await Promise.all(
-      batch.map(async (spec) => {
-        const user = buildOutlineNormalizeChunkUserPrompt(spec.text, {
-          globalStart: spec.start,
-          globalEnd: spec.end,
-          totalPages,
-        });
-        return normalizeOutlineSinglePass(
-          spec.text,
-          () => user,
-          CHUNK_LLM_TIMEOUT_MS
-        );
-      })
+      batch.map((spec) =>
+        runOneChunkWithRetry(spec, totalPages, pageBlocks, fallbackPages)
+      )
     );
 
     for (let j = 0; j < batchResults.length; j++) {
       const spec = batch[j]!;
       const out = batchResults[j]!;
-      chatCalls += out.ok ? out.chatCalls : out.failure.chatCalls;
+      chatCalls += out.ok ? out.calls : out.failure.chatCalls;
       if (!out.ok) {
         return {
           ok: false,
@@ -356,11 +518,11 @@ async function normalizeOutlineChunked(
           },
         };
       }
-      if (!presentationTitle && out.data.presentationTitle) {
-        presentationTitle = out.data.presentationTitle;
+      if (!presentationTitle && out.title) {
+        presentationTitle = out.title;
       }
-      mergedPages.push(...out.data.pages);
-      warnings.push(...out.data.warnings);
+      mergedPages.push(...out.pages);
+      warnings.push(...out.extraWarnings);
     }
   }
 
@@ -443,7 +605,11 @@ export async function normalizeOutlineWithLlm(
 
   const pageBlocks = splitOutlineRawIntoPageBlocks(trimmed);
   if (options?.useChunked && shouldUseChunkedNormalize(trimmed, pageBlocks)) {
-    return normalizeOutlineChunked(trimmed, pageBlocks!);
+    return normalizeOutlineChunked(
+      trimmed,
+      pageBlocks!,
+      options.fallbackPages
+    );
   }
 
   return normalizeOutlineSinglePass(trimmed);
