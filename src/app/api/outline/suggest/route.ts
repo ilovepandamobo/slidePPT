@@ -7,6 +7,8 @@ import {
 import { resolveOutline } from "@/lib/outline/resolve";
 import { z } from "zod";
 
+export const maxDuration = 300;
+
 const schema = z.object({
   outline: z.string(),
   autoSplit: z.boolean().optional(),
@@ -50,6 +52,8 @@ export async function POST(req: Request) {
       source: resolved.source,
       confidence: resolved.confidence,
       warnings: resolved.warnings.length ? resolved.warnings : undefined,
+      llmFailed: resolved.llmFailed || undefined,
+      llmError: resolved.llmError || undefined,
     });
   } catch {
     return NextResponse.json({ error: "解析失败" }, { status: 400 });

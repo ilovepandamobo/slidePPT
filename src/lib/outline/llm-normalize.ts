@@ -48,7 +48,13 @@ export function validateLlmOutline(
     .join("");
   const rawNorm = normalizeChars(normalizeOutlineInput(raw));
   const extractedNorm = normalizeChars(extracted);
-  if (rawNorm.length > 200 && extractedNorm.length < rawNorm.length * 0.55) {
+  const pageCount = result.pages.length;
+  const lossRatio =
+    pageCount >= 20 ? 0.32 : pageCount >= 10 ? 0.42 : 0.55;
+  if (
+    rawNorm.length > 200 &&
+    extractedNorm.length < rawNorm.length * lossRatio
+  ) {
     errors.push("content_loss_suspected");
   }
 
@@ -82,14 +88,27 @@ function parseLlmResponse(text: string): LlmOutlineResponse | null {
 const OUTLINE_LLM_TIMEOUT_MS =
   Number(process.env.GRSAI_CHAT_OUTLINE_TIMEOUT_MS) || 180_000;
 
-async function callNormalizeLlm(userContent: string): Promise<string | null> {
+function outlineLlmMaxTokens(raw: string): number {
+  const slideMarkers = raw.match(/(?:^|\n)\s*#{0,3}\s*Slide\s+\d+/gi)?.length ?? 0;
+  const cnMarkers = raw.match(/第\s*\d+\s*页/g)?.length ?? 0;
+  const estPages = Math.max(slideMarkers, cnMarkers);
+  if (estPages >= 25 || raw.length > 40_000) return 28_000;
+  if (estPages >= 15 || raw.length > 25_000) return 20_000;
+  if (estPages >= 8) return 12_000;
+  return 8000;
+}
+
+async function callNormalizeLlm(
+  userContent: string,
+  rawForTokens: string
+): Promise<string | null> {
   return grsaiChatCompletion({
     messages: [
       { role: "system", content: OUTLINE_NORMALIZE_SYSTEM_PROMPT },
       { role: "user", content: userContent },
     ],
     jsonMode: true,
-    maxTokens: 8000,
+    maxTokens: outlineLlmMaxTokens(rawForTokens),
     temperature: 0,
     timeoutMs: OUTLINE_LLM_TIMEOUT_MS,
   });
@@ -109,16 +128,27 @@ export async function normalizeOutlineWithLlm(
   const trimmed = normalizeOutlineInput(raw);
   if (!trimmed || trimmed.length > MAX_OUTLINE_CHARS) return null;
 
-  let content = await callNormalizeLlm(buildOutlineNormalizeUserPrompt(trimmed));
-  if (!content) return null;
+  let content = await callNormalizeLlm(
+    buildOutlineNormalizeUserPrompt(trimmed),
+    trimmed
+  );
+  if (!content) {
+    console.warn("[outline-llm] empty chat response");
+    return null;
+  }
 
   let parsed = parseLlmResponse(content);
-  if (!parsed) return null;
+  if (!parsed) {
+    console.warn("[outline-llm] JSON parse or schema failed", content.slice(0, 200));
+    return null;
+  }
 
   let errors = validateLlmOutline(trimmed, parsed);
   if (errors.length > 0) {
+    console.warn("[outline-llm] validate errors, retry once:", errors.join(","));
     content = await callNormalizeLlm(
-      buildOutlineNormalizeRetryPrompt(trimmed, errors)
+      buildOutlineNormalizeRetryPrompt(trimmed, errors),
+      trimmed
     );
     if (!content) return null;
     parsed = parseLlmResponse(content);

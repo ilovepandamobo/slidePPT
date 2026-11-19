@@ -21,9 +21,9 @@ export const LlmOutlinePageSchema = z.object({
 });
 
 export const LlmOutlineResponseSchema = z.object({
-  pageCount: z.number().int().min(1).max(50),
+  pageCount: z.number().int().min(1).max(80),
   presentationTitle: z.string().optional(),
-  pages: z.array(LlmOutlinePageSchema).min(1).max(50),
+  pages: z.array(LlmOutlinePageSchema).min(1).max(80),
   warnings: z.array(z.string()).optional(),
 });
 

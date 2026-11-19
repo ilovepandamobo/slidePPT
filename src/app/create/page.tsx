@@ -81,10 +81,15 @@ function CreateWizard() {
   async function suggestOutline(forceNormalize = false) {
     setLoadingMode("outline");
     setLoading(true);
-    setGenProgress("");
+    setGenProgress(
+      forceNormalize ? "AI 结构化大纲中（长稿可能需要 1–3 分钟）…" : ""
+    );
     setError("");
-    setResolveSource(null);
-    setResolveConfidence(null);
+    if (!forceNormalize) {
+      setResolveSource(null);
+      setResolveConfidence(null);
+    }
+    const outlineTimeoutMs = 300_000;
     try {
       const res = await fetch("/api/outline/suggest", {
         method: "POST",
@@ -94,6 +99,7 @@ function CreateWizard() {
           autoSplit: !hasExplicitPageMarkers(outline),
           forceNormalize,
         }),
+        signal: AbortSignal.timeout(outlineTimeoutMs),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
@@ -102,14 +108,28 @@ function CreateWizard() {
       setResolveConfidence(
         typeof data.confidence === "number" ? data.confidence : null
       );
+      if (data.llmFailed && data.llmError) {
+        setError(data.llmError);
+      } else if (forceNormalize && data.source !== "llm") {
+        setError(
+          "AI 识别未生效，仍使用规则分页。若页数很多，可先按 Slide 页码用规则识别再生成。"
+        );
+      }
       if (data.suggestedTitle && !title.trim()) {
         setTitle(data.suggestedTitle);
       }
       setStep(2);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "解析失败");
+      const msg =
+        e instanceof Error && e.name === "TimeoutError"
+          ? `大纲 AI 识别超时（${Math.round(outlineTimeoutMs / 1000)} 秒）。GrsAI 可能已扣费，请稍后重试或直接用规则识别。`
+          : e instanceof Error
+            ? e.message
+            : "解析失败";
+      setError(msg);
     } finally {
       setLoading(false);
+      setGenProgress("");
     }
   }
 

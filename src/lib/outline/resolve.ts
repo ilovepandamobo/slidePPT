@@ -20,6 +20,9 @@ export type OutlineResolveResult = {
   outlineRaw: string;
   suggestedTitle: string;
   strictPageBoundaries: boolean;
+  /** 用户强制 AI 识别但 LLM 未产出可用结果 */
+  llmFailed?: boolean;
+  llmError?: string;
 };
 
 export type ResolveOutlineOptions = {
@@ -73,6 +76,24 @@ export async function resolveOutline(
           llm.presentationTitle ||
           inferPresentationTitle(llm.pages, outlineRaw),
         strictPageBoundaries: true,
+      };
+    }
+    if (options?.forceLlm) {
+      const hint =
+        rulePages.length > 0
+          ? "AI 未返回可用 JSON（长稿可能超出模型输出上限）。仍显示规则分页。"
+          : "AI 未识别出页面，请检查大纲格式。";
+      warnings.push("llm_normalize_failed");
+      return {
+        pages: rulePages,
+        source: "rules",
+        confidence: score,
+        warnings: [...warnings, ...reasons],
+        outlineRaw,
+        suggestedTitle: inferPresentationTitle(rulePages, outlineRaw),
+        strictPageBoundaries: rulePages.length > 0 && score >= 0.85,
+        llmFailed: true,
+        llmError: hint,
       };
     }
     if (needsLlm && rulePages.length === 0) {
