@@ -86,7 +86,7 @@ export async function resolveOutline(
         rulePages: rulePages.length,
         useChunked,
         chunks: pageBlocks
-          ? Math.ceil(pageBlocks.length / (Number(process.env.OUTLINE_LLM_CHUNK_PAGES) || 5))
+          ? Math.ceil(pageBlocks.length / (Number(process.env.OUTLINE_LLM_CHUNK_PAGES) || 2))
           : 0,
       });
     }

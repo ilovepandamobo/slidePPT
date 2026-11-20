@@ -157,6 +157,17 @@ const WHATSAPP_NUMERIC_SLIDE_SNIPPET = `# 航旅出海 WhatsApp 行业通案
 `;
 
 describe("parseOutline ### 01 numeric slide headers (航旅通案)", () => {
+  it("山东 31 页稿：忽略章节 ## 01、含 ### 30–31", () => {
+    const raw = readFileSync(
+      new URL("../../exports/shandong-whatsapp-31-outline.md", import.meta.url),
+      "utf8"
+    );
+    const pages = parseOutline(raw);
+    assert.equal(pages.length, 31);
+    assert.equal(pages[0].title.includes("山东航空"), true);
+    assert.equal(pages[30].title.includes("试点"), true);
+  });
+
   it("splits only ### 01–25 / A–D lines, not every markdown ###", () => {
     assert.equal(hasExplicitPageMarkers(WHATSAPP_NUMERIC_SLIDE_SNIPPET), true);
     const pages = parseOutline(WHATSAPP_NUMERIC_SLIDE_SNIPPET);

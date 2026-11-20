@@ -102,14 +102,13 @@ function CreateWizard() {
       forceNormalize ||
       isSuspiciousRuleSplit(raw, previewPages, previewConf.reasons) ||
       shouldUseLlmNormalize(raw, previewPages, previewConf);
+    const parallelBatches = Math.max(1, Math.ceil(previewPages.length / 1));
     const outlineTimeoutMs = forceNormalize
-      ? Math.min(900_000, 90_000 + previewPages.length * 12_000)
+      ? Math.min(240_000, 55_000 + previewPages.length * 2_500)
       : 120_000;
     setGenProgress(
       forceNormalize
-        ? previewPages.length >= 8 && hasExplicitPageMarkers(raw)
-          ? `正在 AI 结构化识别（${previewPages.length} 页，约 9 批，最长 ${Math.round(outlineTimeoutMs / 60_000)} 分钟，请勿关闭页面）…`
-          : "复杂格式，正在 AI 结构化识别（约 30 秒–3 分钟）…"
+        ? `正在 AI 并行识别（${previewPages.length} 页，${parallelBatches} 路并发，目标约 30 秒内）…`
         : useAiFirst
           ? "正在识别大纲（长稿可能调用 AI 辅助）…"
           : "规则快速识别中…"

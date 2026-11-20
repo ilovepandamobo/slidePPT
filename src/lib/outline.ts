@@ -46,9 +46,9 @@ const BRACKET_PAGE_HEADER_RE = new RegExp(
   `^[【\\[]\\s*第\\s*${PAGE_NUM}\\s*页\\s*[】\\]]\\s*(.*)$`,
   "i"
 );
-/** `### 01　封面｜标题`、`### 25　系统接入`（须为 # 标题行；勿把 `17-slide` 当成页码） */
+/** `### 01　封面｜标题`、`### 31　试点`（仅三级标题；勿把 `## 11 月` 当成页码） */
 const NUMERIC_SLIDE_DIGIT_RE =
-  /^(?:0?[1-9]|[1-2]\d|25)(?:[｜|：:\u3000]|\s+)(.+)$/;
+  /^(?:0?[1-9]|[1-9]\d)(?:[｜|：:\u3000]|\s+)(.+)$/;
 /** 备选 `### A　拉美市场` */
 const NUMERIC_SLIDE_APPENDIX_RE =
   /^(?:备选\s*)?([A-Da-d])(?:[｜|：:\u3000]|\s+)(.+)$/;
@@ -63,7 +63,8 @@ function numericSlideTitleFromBody(body: string): string | null {
 
 function isNumericSlideMarkdownHeader(line: string): boolean {
   const t = line.trim();
-  if (!/^#{1,3}\s+/.test(t)) return false;
+  /** 与 `### 01　封面` 一致；`## 01 章` / `## 11 月…` 不算分页 */
+  if (!/^###\s+/.test(t)) return false;
   const body = normalizeOutlineLine(t);
   return numericSlideTitleFromBody(body) !== null;
 }
