@@ -19,6 +19,13 @@ const LABEL_ONLY =
 const MD_BOLD_LABEL =
   /^\*\*(页面标题|页面文案|内容模块|排版设计|关键指标呈现|底部结论)\*\*\s*$/;
 
+/** 航旅/企方案 brief：- **上屏** / **设计** 等 */
+const MD_BOLD_SECTION_LINE =
+  /^(?:[●•○◦\-\*]\s*)?\*\*([^*]+)\*\*\s*(.*)$/u;
+
+const PRODUCTION_MARKER_RE =
+  /(?:^|\n)\s*(?:[●•○◦\-\*]\s*)?\*\*(?:上屏|设计|设计与画面|业务挑战|做法|已披露|节点小字|上屏路径|上屏流程)/m;
+
 function stripMarkdownBold(text: string): string {
   return text.replace(/\*\*/g, "").trim();
 }
@@ -31,6 +38,22 @@ function stripInlineLabel(line: string): string {
   return cleaned;
 }
 
+function normalizeBriefLabel(label: string): string {
+  return label.replace(/\s+/g, "").trim();
+}
+
+function sectionFromBriefLabel(label: string): "title" | "body" | "visual" {
+  const t = normalizeBriefLabel(label);
+  if (/^(页面标题|标题)$/.test(t)) return "title";
+  if (
+    /^(设计|设计与画面|画面|配图|配图指引|排版设计|素材|设计与画面)$/.test(t) ||
+    /^设计/.test(t)
+  ) {
+    return "visual";
+  }
+  return "body";
+}
+
 /** 是否含有常见的中文页内结构标记 */
 export function hasStructuredSlideMarkers(text: string): boolean {
   return (
@@ -38,7 +61,8 @@ export function hasStructuredSlideMarkers(text: string): boolean {
       text
     ) ||
     /(?:^|\n)\s*\*\*(?:页面标题|页面文案|内容模块|排版设计)\*\*/m.test(text) ||
-    /(?:^|\n)\s*(?:配图指引|排版设计|核心内容)\s*$/m.test(text)
+    /(?:^|\n)\s*(?:配图指引|排版设计|核心内容)\s*$/m.test(text) ||
+    PRODUCTION_MARKER_RE.test(text)
   );
 }
 
@@ -47,6 +71,9 @@ type BodySection = "none" | "title" | "body" | "visual";
 function sectionFromLabel(label: string): BodySection {
   if (/页面标题|^标题$/i.test(label)) return "title";
   if (/排版设计|^画面$|^配图/i.test(label)) return "visual";
+  const brief = sectionFromBriefLabel(label);
+  if (brief === "title") return "title";
+  if (brief === "visual") return "visual";
   return "body";
 }
 
@@ -80,6 +107,24 @@ export function parseStructuredPageBody(raw: string): {
       continue;
     }
 
+    const boldSection = trimmed.match(MD_BOLD_SECTION_LINE);
+    if (boldSection) {
+      const label = boldSection[1].trim();
+      section = sectionFromLabel(label);
+      if (section === "visual") {
+        visualLabel = /^设计/.test(normalizeBriefLabel(label)) ? "排版设计" : label;
+      }
+      const rest = (boldSection[2] || "")
+        .replace(/^[：:｜\s　]+/u, "")
+        .trim();
+      if (rest) {
+        if (section === "title") titleFromBody = rest;
+        else if (section === "visual") visualLines.push(rest);
+        else bodyLines.push(rest);
+      }
+      continue;
+    }
+
     const cleaned = stripMarkdownBold(trimmed);
     if (LABEL_ONLY.test(cleaned)) {
       const label = cleaned.replace(/[:：]\s*$/, "");
@@ -89,11 +134,13 @@ export function parseStructuredPageBody(raw: string): {
     }
 
     const inlineSection = cleaned.match(
-      /^(页面标题|页面文案|内容模块|排版设计|关键指标呈现|底部结论|标题|内容|画面|配图(?:指引)?|核心内容)\s*[:：]\s*(.*)$/i
+      /^(页面标题|页面文案|内容模块|排版设计|关键指标呈现|底部结论|标题|内容|画面|配图(?:指引)?|核心内容|上屏(?:路径|流程|图表|左侧|右侧)?|主句放大|业务挑战|做法|已披露[^：]*|节点小字|三屏下的小字|渠道分工小条|设计与画面|设计)\s*[:：]\s*(.*)$/i
     );
     if (inlineSection) {
       section = sectionFromLabel(inlineSection[1]);
-      if (section === "visual") visualLabel = inlineSection[1];
+      if (section === "visual") {
+        visualLabel = /设计/.test(inlineSection[1]) ? "排版设计" : inlineSection[1];
+      }
       const rest = inlineSection[2]?.trim();
       if (rest) {
         if (section === "title") titleFromBody = rest;
@@ -149,8 +196,13 @@ export function prepareSlideContentForImage(
       .trim();
   }
 
+  body = body.replace(
+    /^(?:[●•○◦\-\*]\s*)?\*\*(?:上屏|设计(?:与设计|与画面)?|业务挑战|做法)\*\*\s*/gim,
+    ""
+  );
+
   const visualFromBody = parsed.notes
-    ?.replace(/^(?:画面|排版设计)\s*[:：]\s*/i, "")
+    ?.replace(/^(?:画面|排版设计|配图指引)\s*[:：]\s*/i, "")
     .trim();
   const visualDirection = [visualFromBody, notes?.trim()]
     .filter(Boolean)

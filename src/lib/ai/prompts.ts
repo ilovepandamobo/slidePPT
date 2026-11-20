@@ -273,7 +273,8 @@ Content-driven design rule:
 - Let the amount and type of content above dictate grid, columns, cards, and hierarchy.
 - This page's composition MUST differ from other slides in the deck (cover vs TOC vs body vs data).
 - Do not repeat the same template layout on every page.
-- NEVER render outline metadata labels such as 「标题：」「内容：」「画面：」「核心内容」「配图指引」 on the slide — only the actual headline and body text.`;
+- NEVER render outline metadata labels such as 「标题：」「内容：」「画面：」「核心内容」「配图指引」「上屏」「设计」「设计与画面」「业务挑战」「做法」「节点小字」 on the slide — only the actual headline and body text.
+- Author notes under "Visual composition hints" are layout/art direction only; never print them verbatim on the slide.`;
 }
 
 function buildHardConstraints(options: SlidePromptOptions): string {
