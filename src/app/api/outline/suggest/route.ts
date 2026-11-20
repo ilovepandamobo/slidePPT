@@ -7,7 +7,8 @@ import {
 import { resolveOutline } from "@/lib/outline/resolve";
 import { z } from "zod";
 
-export const maxDuration = 300;
+/** 34 页级 forced AI 分 9 批 + 重试可超过 5 分钟 */
+export const maxDuration = 600;
 
 const schema = z.object({
   outline: z.string(),

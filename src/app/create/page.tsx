@@ -102,10 +102,13 @@ function CreateWizard() {
       forceNormalize ||
       isSuspiciousRuleSplit(raw, previewPages, previewConf.reasons) ||
       shouldUseLlmNormalize(raw, previewPages, previewConf);
+    const outlineTimeoutMs = forceNormalize
+      ? Math.min(900_000, 90_000 + previewPages.length * 12_000)
+      : 120_000;
     setGenProgress(
       forceNormalize
         ? previewPages.length >= 8 && hasExplicitPageMarkers(raw)
-          ? `正在 AI 结构化识别（${previewPages.length} 页，分批处理，约 2–4 分钟）…`
+          ? `正在 AI 结构化识别（${previewPages.length} 页，约 9 批，最长 ${Math.round(outlineTimeoutMs / 60_000)} 分钟，请勿关闭页面）…`
           : "复杂格式，正在 AI 结构化识别（约 30 秒–3 分钟）…"
         : useAiFirst
           ? "正在识别大纲（长稿可能调用 AI 辅助）…"
@@ -116,7 +119,6 @@ function CreateWizard() {
       setResolveSource(null);
       setResolveConfidence(null);
     }
-    const outlineTimeoutMs = 300_000;
     try {
       const res = await fetch("/api/outline/suggest", {
         method: "POST",
@@ -151,12 +153,16 @@ function CreateWizard() {
       }
       if (step !== 2) setStep(2);
     } catch (e) {
-      const msg =
-        e instanceof Error && e.name === "TimeoutError"
-          ? `大纲 AI 识别超时（${Math.round(outlineTimeoutMs / 1000)} 秒）。GrsAI 可能已扣费，请稍后重试或直接用规则识别。`
-          : e instanceof Error
-            ? e.message
-            : "解析失败";
+      const aborted =
+        e instanceof Error &&
+        (e.name === "TimeoutError" ||
+          e.name === "AbortError" ||
+          /aborted/i.test(e.message));
+      const msg = aborted
+        ? `大纲 AI 识别等待超过 ${Math.round(outlineTimeoutMs / 1000)} 秒或被中断（服务端可能仍在跑批、GrsAI 可能已扣费）。当前规则分页仍可用，可直接「开始生成」；或稍后重试「用 AI 重新识别」。`
+        : e instanceof Error
+          ? e.message
+          : "解析失败";
       setError(msg);
     } finally {
       setLoading(false);
