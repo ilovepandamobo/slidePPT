@@ -19,8 +19,8 @@ describe("image model fallback chains", () => {
   it("hd default chain prefers 2.6 sunburst at 4K", () => {
     const chain = getHdImagesModelChain();
     assert.equal(chain[0], "gpt-image-2.6-sunburst");
+    assert.equal(chain[1], "gpt-image-2-vip");
     assert.ok(chain.includes("gpt-image-2.6-flare"));
-    assert.ok(chain.includes("gpt-image-2-vip"));
   });
 
   it("honours explicit primary model", () => {

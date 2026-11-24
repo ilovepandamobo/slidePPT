@@ -1,12 +1,12 @@
 /** 上游维护/限流时按顺序换模型（可通过环境变量覆盖） */
 
-/** 乘丰 default 分组：3840x2160 下 vip 易挂起；2.6 sunburst/flare 更稳 */
+/** 4K 默认：sunburst → vip（4K 可用）→ flare 系列 */
 const DEFAULT_HD_IMAGES_MODELS = [
   "gpt-image-2.6-sunburst",
+  "gpt-image-2-vip",
   "gpt-image-2.6-flare",
   "gpt-image-2.6-sunburst-4k",
   "gpt-image-2.6-flare-4k",
-  "gpt-image-2-vip",
   "gpt-image-2.5-sunburst",
   "gpt-image-2.5-flare",
 ] as const;
